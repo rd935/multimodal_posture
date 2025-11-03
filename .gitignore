@@ -1,0 +1,14 @@
+# Ignore all datasets and large files
+data/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+*.pkl
+*.pth
+
+# Jupyter/Colab temp
+.ipynb_checkpoints/
