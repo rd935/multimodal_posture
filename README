@@ -1,0 +1,5 @@
+# Multimodal Posture Recognition (UTD-MHAD)
+
+This project implements a multimodal human action/posture recognition pipeline using the **UTD-MHAD** dataset, combining **RGB** and **Depth (.mat)** modalities.
+
+## Project Structure
