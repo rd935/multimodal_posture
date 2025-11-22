@@ -267,8 +267,28 @@ def main():
 
 
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
-    optimizer = Adam(model.parameters(), lr=lr, weight_decay=5e-4)
 
+    # Two-LR optimizer: smaller LR for backbones, larger LR for fusion/attn heads
+    backbone_params = []
+    head_params = []
+    for name, p in model.named_parameters():
+        if not p.requires_grad:
+            continue
+        if "backbone" in name:
+            backbone_params.append(p)
+        else:
+            head_params.append(p)
+
+    print(f"[DEBUG] #backbone_params={len(backbone_params)}, #head_params={len(head_params)}")
+
+    optimizer = Adam(
+        [
+            {"params": backbone_params, "lr": lr},          # e.g. 1e-4
+            {"params": head_params, "lr": lr * 3.0},        # e.g. 3e-4
+        ],
+        weight_decay=5e-4,  # bit stronger regularization
+    )
+    
     best_val_acc = 0.0
     best_epoch = 0
     epochs_no_improve = 0

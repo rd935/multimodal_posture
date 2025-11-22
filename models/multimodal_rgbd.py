@@ -205,6 +205,10 @@ class MultimodalRGBDAttentionFusion(nn.Module):
             nn.Linear(attn_hidden_dim, 2),
         )
 
+        last_attn_linear = self.attn_mlp[-1]
+        nn.init.zeros_(last_attn_linear.weight)
+        nn.init.zeros_(last_attn_linear.bias)
+
         # --------- classifier on fused representation ----------
         # input: concat [z_rgb_w, z_depth_w] -> (B, 2*D)
         self.fusion_mlp = nn.Sequential(
@@ -369,6 +373,11 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(attn_hidden_dim, 2),
         )
+
+        # NEW: start attention at equal RGB/Depth weights (0.5, 0.5)
+        last_attn_linear = self.attn_mlp[-1]
+        nn.init.zeros_(last_attn_linear.weight)
+        nn.init.zeros_(last_attn_linear.bias)
 
         # --------- classifier on fused representation ----------
         self.fusion_mlp = nn.Sequential(

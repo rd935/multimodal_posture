@@ -357,8 +357,27 @@ def main():
         freeze_backbone=freeze_backbone
     ).to(DEVICE)
 
-    optimizer = Adam(model.parameters(), lr=lr, weight_decay=5e-4)
+    # Two-LR optimizer: gentle on backbones, faster on heads
+    backbone_params = []
+    head_params = []
+    for name, p in model.named_parameters():
+        if not p.requires_grad:
+            continue
+        if "backbone" in name:
+            backbone_params.append(p)
+        else:
+            head_params.append(p)
 
+    print(f"[DEBUG] core: #backbone_params={len(backbone_params)}, #head_params={len(head_params)}")
+
+    optimizer = Adam(
+        [
+            {"params": backbone_params, "lr": lr},
+            {"params": head_params, "lr": lr * 3.0},
+        ],
+        weight_decay=5e-4,
+    )
+    
     best_val_loss = float("inf")
     best_val_acc = 0.0
     best_epoch = 0
