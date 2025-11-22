@@ -210,7 +210,7 @@ class MultimodalRGBDAttentionFusion(nn.Module):
         self.fusion_mlp = nn.Sequential(
             nn.Linear(2 * embed_dim, fusion_hidden_dim),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(fusion_hidden_dim, num_classes),
         )
 
@@ -334,7 +334,8 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
         attn_hidden_dim: int = 256,
         proj_dim: int = 128,
         pretrained: bool = True,
-        normalize_embeddings: bool = False,  # <<< changed default to False
+        normalize_embeddings: bool = False,
+        freeze_backbone: bool = False,
     ):
         super().__init__()
         self.normalize_embeddings = normalize_embeddings
@@ -349,6 +350,14 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
 
         self.rgb_feature_dim = rgb_baseline.feature_dim
         self.depth_feature_dim = depth_baseline.feature_dim
+
+        if freeze_backbone:
+            for name, p in self.rgb_backbone.named_parameters():
+                if "layer4" not in name:   # keep the last block trainable
+                    p.requires_grad = False
+            for name, p in self.depth_backbone.named_parameters():
+                if "layer4" not in name:
+                    p.requires_grad = False
 
         # --------- shared projections ----------
         self.rgb_proj = nn.Linear(self.rgb_feature_dim, embed_dim)

@@ -266,8 +266,8 @@ def main():
     ).to(DEVICE)
 
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    optimizer = Adam(model.parameters(), lr=lr, weight_decay=5e-4)
 
     best_val_acc = 0.0
     best_epoch = 0

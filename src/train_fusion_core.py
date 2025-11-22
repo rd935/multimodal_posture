@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch.optim import Adam
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
+import random
 
 # ---------------------------------------------------------
 # Path setup so we can import datasets/ and models/
@@ -23,6 +24,14 @@ from datasets.dataloaders import make_utd_mhad_loaders
 from models.multimodal_rgbd import MultimodalRGBDAttnContrastiveUncertainty
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+def set_seed(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def contrastive_loss_rgb_depth(
@@ -88,7 +97,7 @@ def train_one_epoch(
         )
 
         # ----- (1) classification is the main objective -----
-        cls_loss = F.cross_entropy(logits, labels)  # scalar
+        cls_loss = F.cross_entropy(logits, labels, label_smoothing=0.1)  # scalar
 
         # ----- (2) contrastive loss (auxiliary) -----
         proj_rgb = extras["proj_rgb"]
@@ -271,6 +280,7 @@ def plot_attention_heatmap(
 
 
 def main():
+    set_seed(42)
     # -----------------------------------------------------
     # Load YAML config
     # -----------------------------------------------------
@@ -334,6 +344,7 @@ def main():
     proj_dim = int(model_cfg.get("proj_dim", 128))
     pretrained = bool(model_cfg.get("pretrained", True))
     normalize_embeddings = bool(model_cfg.get("normalize_embeddings", False))
+    freeze_backbone = bool(model_cfg.get("freeze_backbone", True))
 
     model = MultimodalRGBDAttnContrastiveUncertainty(
         num_classes=num_classes,
@@ -343,9 +354,10 @@ def main():
         proj_dim=proj_dim,
         pretrained=pretrained,
         normalize_embeddings=normalize_embeddings,
+        freeze_backbone=freeze_backbone
     ).to(DEVICE)
 
-    optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    optimizer = Adam(model.parameters(), lr=lr, weight_decay=5e-4)
 
     best_val_loss = float("inf")
     best_val_acc = 0.0
