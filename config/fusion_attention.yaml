@@ -16,8 +16,8 @@ loader:
 
 model:
   embed_dim: 256
-  fusion_hidden_dim: 512
-  attn_hidden_dim: 256
+  fusion_hidden_dim: 256
+  attn_hidden_dim: 128
   pretrained: true
   freeze_backbone: false
 

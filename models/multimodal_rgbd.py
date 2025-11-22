@@ -257,7 +257,7 @@ class MultimodalRGBDAttentionFusion(nn.Module):
 
         # attention logits and weights
         attn_logits = self.attn_mlp(h)           # (B, 2)
-        tau = 0.7
+        tau = 1.0
         modality_attention = F.softmax(attn_logits / tau, dim=-1)  # (B, 2)
 
         alpha_rgb = modality_attention[:, 0:1]   # (B, 1)

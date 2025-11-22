@@ -11,6 +11,8 @@ import torch.nn as nn
 from torch.optim import Adam
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
+import random
+
 
 # ---------------------------------------------------------
 # Path setup so we can import datasets/ and models/
@@ -25,6 +27,13 @@ from models.multimodal_rgbd import MultimodalRGBDAttentionFusion
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+def set_seed(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 def train_one_epoch(model, loader, optimizer, criterion):
     model.train()
@@ -182,6 +191,7 @@ def plot_attention_heatmap(
 
 
 def main():
+    set_seed(42)
     # -----------------------------------------------------
     # Load YAML config
     # -----------------------------------------------------
@@ -229,6 +239,9 @@ def main():
         resize=resize,
     )
 
+    print(f"[DEBUG] Dataset sizes: train={len(train_loader.dataset)}, "
+      f"val={len(val_loader.dataset)}, test={len(test_loader.dataset)}")
+
     # infer num_classes from train dataset
     train_ds = train_loader.dataset
     labels = [int(row["label"]) for row in train_ds.items]
@@ -254,26 +267,7 @@ def main():
 
 
     criterion = nn.CrossEntropyLoss()
-    
-    # Separate backbone vs "head" (projections + attention + classifier)
-    backbone_params = []
-    head_params = []
-
-    for name, p in model.named_parameters():
-        if not p.requires_grad:
-            continue
-        if "rgb_backbone" in name or "depth_backbone" in name:
-            backbone_params.append(p)
-        else:
-            head_params.append(p)
-
-    optimizer = Adam(
-        [
-            {"params": backbone_params, "lr": 1e-5, "weight_decay": 1e-5},   # very gentle FT
-            {"params": head_params, "lr": 1e-4, "weight_decay": 5e-5},       # as before, slightly softer WD
-        ]
-    )
-
+    optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 
     best_val_acc = 0.0
     best_epoch = 0
