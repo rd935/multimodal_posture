@@ -1,7 +1,7 @@
 data:
-  train_csv: data/utd_mhad/train.csv
-  val_csv: data/utd_mhad/val.csv
-  test_csv: data/utd_mhad/test.csv
+  train_csv: data/utd_mhad/splits/utd_mhad_train.csv
+  val_csv: data/utd_mhad/splits/utd_mhad_val.csv
+  test_csv: data/utd_mhad/splits/utd_mhad_test.csv
   rgb_frames: 16
   resize: [224, 224]
 
