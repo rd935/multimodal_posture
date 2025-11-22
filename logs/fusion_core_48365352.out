@@ -1,0 +1,80 @@
+---------------------------------------
+Running on host: gpuk002.amarel.rutgers.edu
+CUDA visible devices: 2
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_core.yaml
+Epoch 01 | train_loss=3.1396, train_cls=3.1220, train_contrast=1.7601, train_acc=0.1113 | val_loss=2.6680, val_acc=0.3023
+  [*] New best val_loss=2.6680, checkpoint saved.
+Epoch 02 | train_loss=2.4428, train_cls=2.4297, train_contrast=1.3065, train_acc=0.2746 | val_loss=1.8381, val_acc=0.4000
+  [*] New best val_loss=1.8381, checkpoint saved.
+Epoch 03 | train_loss=1.8437, train_cls=1.8312, train_contrast=1.2484, train_acc=0.4397 | val_loss=1.5252, val_acc=0.5488
+  [*] New best val_loss=1.5252, checkpoint saved.
+Epoch 04 | train_loss=1.5187, train_cls=1.5076, train_contrast=1.1142, train_acc=0.5028 | val_loss=1.2323, val_acc=0.5767
+  [*] New best val_loss=1.2323, checkpoint saved.
+Epoch 05 | train_loss=1.1989, train_cls=1.1882, train_contrast=1.0714, train_acc=0.6030 | val_loss=1.1244, val_acc=0.5721
+  [*] New best val_loss=1.1244, checkpoint saved.
+Epoch 06 | train_loss=0.9963, train_cls=0.9873, train_contrast=0.9016, train_acc=0.6735 | val_loss=1.1042, val_acc=0.6186
+  [*] New best val_loss=1.1042, checkpoint saved.
+Epoch 07 | train_loss=0.7636, train_cls=0.7565, train_contrast=0.7079, train_acc=0.7495 | val_loss=1.0977, val_acc=0.6419
+  [*] New best val_loss=1.0977, checkpoint saved.
+Epoch 08 | train_loss=0.6498, train_cls=0.6416, train_contrast=0.8268, train_acc=0.7978 | val_loss=1.1095, val_acc=0.5907
+Epoch 09 | train_loss=0.5082, train_cls=0.5004, train_contrast=0.7744, train_acc=0.8330 | val_loss=3.7410, val_acc=0.3163
+Epoch 10 | train_loss=0.5135, train_cls=0.5058, train_contrast=0.7690, train_acc=0.8237 | val_loss=1.6347, val_acc=0.5116
+Epoch 11 | train_loss=0.3917, train_cls=0.3834, train_contrast=0.8290, train_acc=0.8813 | val_loss=0.8956, val_acc=0.7070
+  [*] New best val_loss=0.8956, checkpoint saved.
+Epoch 12 | train_loss=0.2708, train_cls=0.2639, train_contrast=0.6981, train_acc=0.9221 | val_loss=0.7476, val_acc=0.7442
+  [*] New best val_loss=0.7476, checkpoint saved.
+Epoch 13 | train_loss=0.2722, train_cls=0.2643, train_contrast=0.7850, train_acc=0.9054 | val_loss=1.1711, val_acc=0.6419
+Epoch 14 | train_loss=0.2894, train_cls=0.2828, train_contrast=0.6624, train_acc=0.9017 | val_loss=0.7478, val_acc=0.7395
+Epoch 15 | train_loss=0.2028, train_cls=0.1977, train_contrast=0.5131, train_acc=0.9369 | val_loss=0.7019, val_acc=0.7721
+  [*] New best val_loss=0.7019, checkpoint saved.
+Epoch 16 | train_loss=0.2075, train_cls=0.2018, train_contrast=0.5662, train_acc=0.9388 | val_loss=0.9496, val_acc=0.7302
+Epoch 17 | train_loss=0.2984, train_cls=0.2904, train_contrast=0.8061, train_acc=0.9128 | val_loss=0.7219, val_acc=0.7535
+Epoch 18 | train_loss=0.3545, train_cls=0.3463, train_contrast=0.8215, train_acc=0.8924 | val_loss=1.0690, val_acc=0.6465
+Epoch 19 | train_loss=0.2700, train_cls=0.2637, train_contrast=0.6311, train_acc=0.9017 | val_loss=0.7674, val_acc=0.7488
+Epoch 20 | train_loss=0.1750, train_cls=0.1685, train_contrast=0.6425, train_acc=0.9314 | val_loss=0.4955, val_acc=0.8140
+  [*] New best val_loss=0.4955, checkpoint saved.
+Epoch 21 | train_loss=0.2017, train_cls=0.1964, train_contrast=0.5301, train_acc=0.9258 | val_loss=0.5389, val_acc=0.8186
+Epoch 22 | train_loss=0.1902, train_cls=0.1839, train_contrast=0.6302, train_acc=0.9314 | val_loss=1.0462, val_acc=0.6977
+Epoch 23 | train_loss=0.2109, train_cls=0.2042, train_contrast=0.6654, train_acc=0.9072 | val_loss=0.6151, val_acc=0.7395
+Epoch 24 | train_loss=0.2107, train_cls=0.2063, train_contrast=0.4389, train_acc=0.9147 | val_loss=0.9190, val_acc=0.7302
+Epoch 25 | train_loss=0.1528, train_cls=0.1477, train_contrast=0.5072, train_acc=0.9388 | val_loss=0.8240, val_acc=0.7395
+[INFO] Early stopping at epoch 25 (best epoch 20)
+[TEST] loss=1.2371, acc=0.5888
+[TEST] Confusion matrix:
+ [[2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0]
+ [0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0]
+ [0 0 0 3 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 3 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 2 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 1 2 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 1 0 2 1 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 3 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 3 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3]]
+[TEST] Mean modality attention (overall) [RGB, Depth]: [0.07487049 0.92512953]
+[TEST] Mean log-variance RGB: -0.01824546977877617
+[TEST] Mean log-variance Depth: -0.032271858304739
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_confusion_matrix.png
+[INFO] Saved attention heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_attention_heatmap.png

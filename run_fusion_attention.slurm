@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=fusion_attention_rgbd
 #SBATCH --partition=gpu
+#SBATCH --nodelist=gpuk[001-006]
 #SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
