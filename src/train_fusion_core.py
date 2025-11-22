@@ -110,10 +110,17 @@ def train_one_epoch(
         # push logvars gently toward 0 so they don’t explode
         var_reg = (logvar_rgb**2 + logvar_depth**2).mean()
 
+        # ----- (4) attention entropy regularizer -----
+        attn_probs = extras["modality_attention"]  # (B, 2)
+        attn_entropy = -(attn_probs * torch.log(attn_probs + 1e-8)).sum(dim=-1).mean()
+
         # ----- total loss -----
-        loss = cls_loss \
-             + lambda_contrastive * contr_loss \
-             + lambda_var_reg * var_reg
+        loss = (
+            cls_loss
+            + lambda_contrastive * contr_loss
+            + lambda_var_reg * var_reg
+            + 0.01 * attn_entropy
+        )
 
         loss.backward()
         optimizer.step()

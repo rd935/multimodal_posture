@@ -47,8 +47,22 @@ def train_one_epoch(model, loader, optimizer, criterion):
         labels = batch["label"].to(DEVICE)
 
         optimizer.zero_grad()
-        logits = model(rgb, depth)  # no need for attention outputs during training
-        loss = criterion(logits, labels)
+        # get logits and attention for entropy regularization
+        logits, extras = model(
+            rgb,
+            depth,
+            return_embeddings=False,
+            return_attention=True,
+        )
+        loss_ce = criterion(logits, labels)
+
+        # entropy of modality attention: -(p log p) averaged
+        attn_probs = extras["modality_attention"]  # (B, 2)
+        attn_entropy = -(attn_probs * torch.log(attn_probs + 1e-8)).sum(dim=-1).mean()
+
+        # small weight to push attention away from uniform 0.5/0.5
+        loss = loss_ce + 0.01 * attn_entropy
+        
         loss.backward()
         optimizer.step()
 

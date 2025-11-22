@@ -207,7 +207,8 @@ class MultimodalRGBDAttentionFusion(nn.Module):
 
         last_attn_linear = self.attn_mlp[-1]
         nn.init.zeros_(last_attn_linear.weight)
-        nn.init.zeros_(last_attn_linear.bias)
+        with torch.no_grad():
+            last_attn_linear.bias[:] = torch.tensor([-1.0, 2.0], dtype=last_attn_linear.bias.dtype, device=last_attn_linear.bias.device)
 
         # --------- classifier on fused representation ----------
         # input: concat [z_rgb_w, z_depth_w] -> (B, 2*D)
@@ -255,6 +256,8 @@ class MultimodalRGBDAttentionFusion(nn.Module):
             logits: (B, num_classes)
             attn_info (optional): {"modality_attention": (B, 2)}
         """
+
+        z_rgb = 0.5 * z_rgb
 
         # concat embeddings
         h = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
@@ -374,16 +377,18 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
             nn.Linear(attn_hidden_dim, 2),
         )
 
-        # NEW: start attention at equal RGB/Depth weights (0.5, 0.5)
+        ## Bias attention strongly toward Depth at init (same as attention baseline)
         last_attn_linear = self.attn_mlp[-1]
         nn.init.zeros_(last_attn_linear.weight)
-        nn.init.zeros_(last_attn_linear.bias)
+        with torch.no_grad():
+            last_attn_linear.bias[:] = torch.tensor([-1.0, 2.0], dtype=last_attn_linear.bias.dtype, device=last_attn_linear.bias.device)
+
 
         # --------- classifier on fused representation ----------
         self.fusion_mlp = nn.Sequential(
             nn.Linear(2 * embed_dim, fusion_hidden_dim),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(fusion_hidden_dim, num_classes),
         )
 
@@ -457,6 +462,8 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
           - modality attention [alpha_rgb, alpha_depth]
           - fused representation z_fused
         """
+        z_rgb = 0.5 * z_rgb
+        
         h = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
 
         attn_logits = self.attn_mlp(h)          # (B, 2)
