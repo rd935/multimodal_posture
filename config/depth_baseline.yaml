@@ -1,0 +1,19 @@
+data:
+  train_csv: data/utd_mhad/splits/utd_mhad_train.csv
+  val_csv: data/utd_mhad/splits/utd_mhad_val.csv
+  test_csv: data/utd_mhad/splits/utd_mhad_test.csv
+  rgb_frames: 16      # used to align depth sequence length
+  resize: [224, 224]
+
+train:
+  epochs: 20
+  patience: 4
+  batch_size: 8
+  learning_rate: 1e-4
+
+loader:
+  num_workers: 0
+
+logging:
+  ckpt_dir: checkpoints/depth_baseline
+  results_dir: results/depth_baseline

@@ -59,6 +59,18 @@ def load_depth_mat(path):
     arr = np.array(arr, dtype=np.float32)
     return arr
 
+def resample_sequence(arr, target_len):
+    """
+    Resample a temporal sequence arr (T, H, W) to length target_len.
+    Uses nearest-neighbor in time via np.linspace + indexing.
+    """
+    T = arr.shape[0]
+    if T == target_len:
+        return arr
+    # indices in original time
+    idxs = np.linspace(0, T - 1, target_len).astype(int)
+    return arr[idxs]
+
 
 class UTDMHADRGBD(Dataset):
     def __init__(
@@ -129,27 +141,26 @@ class UTDMHADRGBD(Dataset):
         rgb_tensor = torch.stack(rgb_tensor_list, dim=0)
 
         # ---------- DEPTH ----------
-        # since yours are .mat files, load them differently
         if depth_path.suffix.lower() == ".mat":
             depth_arr = load_depth_mat(depth_path)
-            # depth_arr could be (H, W, T) or (T, H, W) depending on file
-            # let's try to make it (T, H, W)
             if depth_arr.ndim == 2:
-                # single frame depth -> repeat to match rgb length
-                depth_arr = np.repeat(depth_arr[None, ...], rgb_tensor.shape[0], axis=0)
+                # (H, W) -> pretend T=1 then resample to len(rgb_tensor)
+                depth_arr = np.repeat(depth_arr[None, ...], 1, axis=0)
             elif depth_arr.ndim == 3:
-                # we need to decide if time is first or last
-                # let's assume (T, H, W); if not, swap
+                # guess layout and convert to (T, H, W)
                 if depth_arr.shape[0] < 10 and depth_arr.shape[-1] > 10:
                     # likely (H, W, T)
                     depth_arr = depth_arr.transpose(2, 0, 1)
+                # else: assume (T, H, W)
             else:
                 raise ValueError(f"Unexpected depth shape {depth_arr.shape} in {depth_path}")
 
-            # sample same number of frames as RGB
-            d_idxs = self._sample_indices(depth_arr.shape[0], rgb_tensor.shape[0])
+            # --- simple temporal resampling to match rgb length ---
+            target_T = rgb_tensor.shape[0]
+            depth_arr = resample_sequence(depth_arr, target_T)  # (T, H, W)
+
             depth_tensor_list = []
-            for i in d_idxs:
+            for i in range(target_T):
                 dframe = depth_arr[i]  # (H, W)
                 dframe_t = self.depth_transform(dframe)
                 depth_tensor_list.append(dframe_t)  # (1, H, W)

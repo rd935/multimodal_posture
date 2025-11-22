@@ -1,0 +1,24 @@
+data:
+  train_csv: data/utd_mhad/splits/utd_mhad_train.csv
+  val_csv: data/utd_mhad/splits/utd_mhad_val.csv
+  test_csv: data/utd_mhad/splits/utd_mhad_test.csv
+  rgb_frames: 16
+  resize: [224, 224]
+
+train:
+  epochs: 20
+  patience: 5
+  learning_rate: 1e-4
+  batch_size: 8
+
+loader:
+  num_workers: 4
+
+model:
+  embed_dim: 256
+  fusion_hidden_dim: 512
+  pretrained: true   # uses ImageNet weights for ResNet backbones
+
+logging:
+  ckpt_dir: checkpoints/fusion_early
+  results_dir: results/fusion_early

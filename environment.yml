@@ -1,0 +1,36 @@
+name: multimodal_posture
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+  - nvidia   # for CUDA-enabled PyTorch if on a GPU machine
+dependencies:
+  # Core Python
+  - python=3.10
+  - pip
+  - numpy=1.26.4
+  - scipy
+  - pandas
+
+  # PyTorch + torchvision (with GPU support)
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1  # change to 11.8 if your GPU drivers are older
+
+  # Image / video processing
+  - opencv
+  - pillow
+  - matplotlib
+
+  # Utilities
+  - tqdm
+  - scikit-learn
+  - pyyaml
+
+  # Add pip packages (for anything not available via conda)
+  - pip:
+      - hydra-core
+      - lightning
+      - einops
+      - seaborn

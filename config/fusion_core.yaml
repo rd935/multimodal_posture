@@ -1,0 +1,28 @@
+data:
+  train_csv: data/utd_mhad/train.csv
+  val_csv: data/utd_mhad/val.csv
+  test_csv: data/utd_mhad/test.csv
+  rgb_frames: 16
+  resize: [224, 224]
+
+train:
+  epochs: 30
+  patience: 5
+  batch_size: 8
+  learning_rate: 1e-4
+  lambda_contrastive: 0.1
+  lambda_uncertainty_reg: 0.01
+
+loader:
+  num_workers: 4
+
+logging:
+  ckpt_dir: checkpoints/fusion_core
+  results_dir: results/fusion_core
+
+model:
+  embed_dim: 256
+  fusion_hidden_dim: 512
+  attn_hidden_dim: 256
+  proj_dim: 128
+  pretrained: true
