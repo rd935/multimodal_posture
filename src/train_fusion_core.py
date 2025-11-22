@@ -1,5 +1,3 @@
-# src/train_fusion_core.py
-
 import sys
 import json
 import yaml
@@ -38,6 +36,8 @@ def contrastive_loss_rgb_depth(
     proj_rgb:   (B, D)
     proj_depth: (B, D)
     """
+    # proj_rgb/proj_depth should already be normalized by the model,
+    # but we normalize again here for safety.
     proj_rgb = F.normalize(proj_rgb, dim=-1)
     proj_depth = F.normalize(proj_depth, dim=-1)
 
@@ -51,12 +51,19 @@ def contrastive_loss_rgb_depth(
 
 
 def train_one_epoch(
-    model,
+    model: nn.Module,
     loader,
     optimizer,
     lambda_contrastive: float,
     lambda_var_reg: float,
 ):
+    """
+    Train for one epoch.
+
+    - Main objective: plain classification cross-entropy
+    - Auxiliary: RGB-Depth contrastive alignment (InfoNCE)
+    - Auxiliary: small regularization on uncertainty log-variances
+    """
     model.train()
     total_loss = 0.0
     total_cls_loss = 0.0
@@ -80,29 +87,24 @@ def train_one_epoch(
             return_projections=True,
         )
 
-        # -------- classification loss (per-sample) --------
-        ce_per_sample = F.cross_entropy(logits, labels, reduction="none")  # (B,)
+        # ----- (1) classification is the main objective -----
+        cls_loss = F.cross_entropy(logits, labels)  # scalar
 
-        logvar_rgb = extras["logvar_rgb"].squeeze(-1)    # (B,)
-        logvar_depth = extras["logvar_depth"].squeeze(-1)  # (B,)
-
-        # convert log-variance to weights ~ 1 / variance
-        w_rgb = torch.exp(-logvar_rgb)
-        w_depth = torch.exp(-logvar_depth)
-        weights = 0.5 * (w_rgb + w_depth)  # (B,)
-
-        cls_loss = (weights * ce_per_sample).mean()
-
-        # optional regularization on log-variances (prevents them from blowing up)
-        var_reg = (logvar_rgb.mean() + logvar_depth.mean())
-
-        # -------- contrastive loss --------
+        # ----- (2) contrastive loss (auxiliary) -----
         proj_rgb = extras["proj_rgb"]
         proj_depth = extras["proj_depth"]
         contr_loss = contrastive_loss_rgb_depth(proj_rgb, proj_depth)
 
-        # -------- total loss --------
-        loss = cls_loss + lambda_contrastive * contr_loss + lambda_var_reg * var_reg
+        # ----- (3) small regularizer on logvars (to keep them bounded) -----
+        logvar_rgb = extras["logvar_rgb"].squeeze(-1)    # (B,)
+        logvar_depth = extras["logvar_depth"].squeeze(-1)
+        # push logvars gently toward 0 so they don’t explode
+        var_reg = (logvar_rgb**2 + logvar_depth**2).mean()
+
+        # ----- total loss -----
+        loss = cls_loss \
+             + lambda_contrastive * contr_loss \
+             + lambda_var_reg * var_reg
 
         loss.backward()
         optimizer.step()
@@ -295,8 +297,8 @@ def main():
     patience = int(train_cfg.get("patience", 3))
     lr = float(train_cfg.get("learning_rate", 1e-4))
 
-    lambda_contrastive = float(train_cfg.get("lambda_contrastive", 0.1))
-    lambda_var_reg = float(train_cfg.get("lambda_uncertainty_reg", 0.01))
+    lambda_contrastive = float(train_cfg.get("lambda_contrastive", 0.01))
+    lambda_var_reg = float(train_cfg.get("lambda_uncertainty_reg", 0.001))
 
     batch_size = int(train_cfg.get("batch_size", 8))
     rgb_frames = int(data_cfg.get("rgb_frames", 16))
@@ -331,6 +333,7 @@ def main():
     attn_hidden_dim = int(model_cfg.get("attn_hidden_dim", 256))
     proj_dim = int(model_cfg.get("proj_dim", 128))
     pretrained = bool(model_cfg.get("pretrained", True))
+    normalize_embeddings = bool(model_cfg.get("normalize_embeddings", False))
 
     model = MultimodalRGBDAttnContrastiveUncertainty(
         num_classes=num_classes,
@@ -339,11 +342,12 @@ def main():
         attn_hidden_dim=attn_hidden_dim,
         proj_dim=proj_dim,
         pretrained=pretrained,
-        normalize_embeddings=True,
+        normalize_embeddings=normalize_embeddings,
     ).to(DEVICE)
 
-    optimizer = Adam(model.parameters(), lr=lr)
+    optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 
+    best_val_loss = float("inf")
     best_val_acc = 0.0
     best_epoch = 0
     epochs_no_improve = 0
@@ -396,13 +400,14 @@ def main():
             f"val_loss={val_loss:.4f}, val_acc={val_acc:.4f}"
         )
 
-        # checkpoint + early stopping on val_acc
-        if val_acc > best_val_acc:
+        # checkpoint + early stopping on val_loss
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
             best_val_acc = val_acc
             best_epoch = epoch
             epochs_no_improve = 0
             torch.save(model.state_dict(), ckpt_dir / "fusion_core_best.pt")
-            print(f"  [*] New best val_acc={val_acc:.4f}, checkpoint saved.")
+            print(f"  [*] New best val_loss={val_loss:.4f}, checkpoint saved.")
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
@@ -441,6 +446,7 @@ def main():
         "train_history": history,
         "best_val": {
             "epoch": best_epoch,
+            "val_loss": best_val_loss,
             "val_acc": best_val_acc,
         },
         "test": {

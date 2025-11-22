@@ -1,5 +1,5 @@
 # Ignore all datasets and large files
-data/
+# data/
 
 # Python cache
 __pycache__/

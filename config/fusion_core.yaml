@@ -10,8 +10,10 @@ train:
   patience: 5
   batch_size: 8
   learning_rate: 1e-4
-  lambda_contrastive: 0.1
-  lambda_uncertainty_reg: 0.01
+
+  # Loss weights
+  lambda_contrastive: 0.01          # smaller, auxiliary
+  lambda_uncertainty_reg: 0.001     # small regularizer on logvars
 
 loader:
   num_workers: 4
@@ -26,3 +28,4 @@ model:
   attn_hidden_dim: 256
   proj_dim: 128
   pretrained: true
+  normalize_embeddings: false       # <<< crucial for classification

@@ -317,12 +317,12 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
     - Projects embeddings into a contrastive space (proj_rgb, proj_depth)
       for InfoNCE-style RGB–Depth alignment
     - Predicts per-modality log-variance (logvar_rgb, logvar_depth) to
-      support uncertainty-weighted classification loss
+      support uncertainty analysis (regularized during training)
 
     Forward interface is designed for training scripts to:
       - use logits for classification
       - use proj_* for contrastive loss
-      - use logvar_* for uncertainty-weighted CE
+      - use logvar_* for uncertainty regularization / analysis
       - use modality_attention for analysis
     """
 
@@ -334,7 +334,7 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
         attn_hidden_dim: int = 256,
         proj_dim: int = 128,
         pretrained: bool = True,
-        normalize_embeddings: bool = True,
+        normalize_embeddings: bool = False,  # <<< changed default to False
     ):
         super().__init__()
         self.normalize_embeddings = normalize_embeddings
@@ -399,6 +399,10 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
 
     # ---------- encoders ----------
     def encode_rgb(self, rgb: torch.Tensor) -> torch.Tensor:
+        """
+        rgb: (B, T, 3, H, W)
+        Returns: z_rgb (B, D)
+        """
         B, T, C, H, W = rgb.shape
         x = rgb.view(B * T, C, H, W)
         feats = self.rgb_backbone(x)                      # (B*T, feat_dim, 1, 1)
@@ -410,6 +414,10 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
         return z_rgb
 
     def encode_depth(self, depth: torch.Tensor) -> torch.Tensor:
+        """
+        depth: (B, T, 1, H, W)
+        Returns: z_depth (B, D)
+        """
         B, T, C, H, W = depth.shape
         x = depth.view(B * T, C, H, W)
         feats = self.depth_backbone(x)                    # (B*T, feat_dim, 1, 1)
@@ -436,11 +444,11 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
         attn_logits = self.attn_mlp(h)          # (B, 2)
         modality_attention = F.softmax(attn_logits, dim=-1)  # (B, 2)
 
-        alpha_rgb = modality_attention[:, 0:1]   # (B, 1)
-        alpha_depth = modality_attention[:, 1:2] # (B, 1)
+        alpha_rgb = modality_attention[:, 0:1]    # (B, 1)
+        alpha_depth = modality_attention[:, 1:2]  # (B, 1)
 
-        z_rgb_w = alpha_rgb * z_rgb             # (B, D)
-        z_depth_w = alpha_depth * z_depth       # (B, D)
+        z_rgb_w = alpha_rgb * z_rgb               # (B, D)
+        z_depth_w = alpha_depth * z_depth         # (B, D)
 
         z_fused = torch.cat([z_rgb_w, z_depth_w], dim=-1)  # (B, 2*D)
         return z_fused, modality_attention
@@ -459,15 +467,15 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
             logvar_rgb:   (B, 1)
             logvar_depth: (B, 1)
         """
-        raw_rgb = self.rgb_var_head(z_rgb)      # (B, 1)
+        raw_rgb = self.rgb_var_head(z_rgb)        # (B, 1)
         raw_depth = self.depth_var_head(z_depth)  # (B, 1)
 
         # ensure positive variance via softplus, then take log
         var_rgb = F.softplus(raw_rgb) + eps
         var_depth = F.softplus(raw_depth) + eps
 
-        logvar_rgb = torch.log(var_rgb)         # (B, 1)
-        logvar_depth = torch.log(var_depth)     # (B, 1)
+        logvar_rgb = torch.log(var_rgb)           # (B, 1)
+        logvar_depth = torch.log(var_depth)       # (B, 1)
 
         return logvar_rgb, logvar_depth
 
