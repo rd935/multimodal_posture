@@ -254,7 +254,25 @@ def main():
 
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = Adam(model.parameters(), lr=lr, weight_decay=5e-5)
+    
+    # Separate backbone vs "head" (projections + attention + classifier)
+    backbone_params = []
+    head_params = []
+
+    for name, p in model.named_parameters():
+        if not p.requires_grad:
+            continue
+        if "rgb_backbone" in name or "depth_backbone" in name:
+            backbone_params.append(p)
+        else:
+            head_params.append(p)
+
+    optimizer = Adam(
+        [
+            {"params": backbone_params, "lr": 1e-5, "weight_decay": 1e-5},   # very gentle FT
+            {"params": head_params, "lr": 1e-4, "weight_decay": 5e-5},       # as before, slightly softer WD
+        ]
+    )
 
 
     best_val_acc = 0.0

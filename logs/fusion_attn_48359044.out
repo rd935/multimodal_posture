@@ -1,0 +1,8 @@
+---------------------------------------
+Running on host: gpuk009.amarel.rutgers.edu
+CUDA visible devices: 1
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA L40S
+[INFO] Using config: config/fusion_attention.yaml
