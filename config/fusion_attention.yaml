@@ -19,8 +19,8 @@ model:
   fusion_hidden_dim: 512
   attn_hidden_dim: 256
   pretrained: true
-  freeze_backbone: true
-  normalize_embeddings: false
+  freeze_backbone: false
+  normalize_embeddings: true
 
 logging:
   ckpt_dir: checkpoints/fusion_attention

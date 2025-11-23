@@ -205,6 +205,11 @@ class MultimodalRGBDAttentionFusion(nn.Module):
             nn.Linear(attn_hidden_dim, 2),
         )
 
+        # Initialize near-uniform attention: weights ~0, bias ~0 → softmax ≈ [0.5, 0.5]
+        last_attn_linear = self.attn_mlp[-1]
+        nn.init.zeros_(last_attn_linear.weight)
+        nn.init.zeros_(last_attn_linear.bias)
+
         # --------- classifier on fused representation ----------
         # input: concat [z_rgb_w, z_depth_w] -> (B, 2*D)
         self.fusion_mlp = nn.Sequential(
@@ -251,33 +256,33 @@ class MultimodalRGBDAttentionFusion(nn.Module):
             logits: (B, num_classes)
             attn_info (optional): {"modality_attention": (B, 2)}
         """
-        
-        # concat embeddings
-        h = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
+
+        # base early fusion representation
+        z_early = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
 
         # attention logits and weights
-        attn_logits = self.attn_mlp(h)           # (B, 2)
+        h = z_early  # same concat
+        attn_logits = self.attn_mlp(h)                 # (B, 2)
+
         tau = 1.0
         modality_attention = F.softmax(attn_logits / tau, dim=-1)  # (B, 2)
-
         alpha_rgb = modality_attention[:, 0:1]   # (B, 1)
         alpha_depth = modality_attention[:, 1:2] # (B, 1)
 
-        # weighted embeddings
-        z_rgb_w = alpha_rgb * z_rgb             # (B, D)
-        z_depth_w = alpha_depth * z_depth       # (B, D)
+        # gated embeddings
+        z_rgb_w = alpha_rgb * z_rgb
+        z_depth_w = alpha_depth * z_depth
+        z_gated = torch.cat([z_rgb_w, z_depth_w], dim=-1)  # (B, 2*D)
 
-        # fused representation keeps 2*D like early fusion
-        z_fused = torch.cat([z_rgb_w, z_depth_w], dim=-1)  # (B, 2*D)
+        # residual mix: stay close to early fusion but allow gating to refine
+        z_fused = 0.5 * z_early + 0.5 * z_gated
 
         logits = self.fusion_mlp(z_fused)
 
         if not return_attention:
             return logits, None
 
-        attn_info = {
-            "modality_attention": modality_attention,  # (B, 2)
-        }
+        attn_info = {"modality_attention": modality_attention}
         return logits, attn_info
 
     # ---------- forward ----------
@@ -370,12 +375,9 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
             nn.Linear(attn_hidden_dim, 2),
         )
 
-        ## Bias attention strongly toward Depth at init (same as attention baseline)
         last_attn_linear = self.attn_mlp[-1]
         nn.init.zeros_(last_attn_linear.weight)
-        with torch.no_grad():
-            last_attn_linear.bias[:] = torch.tensor([-1.0, 2.0], dtype=last_attn_linear.bias.dtype, device=last_attn_linear.bias.device)
-
+        nn.init.zeros_(last_attn_linear.bias)  # no depth preference at init
 
         # --------- classifier on fused representation ----------
         self.fusion_mlp = nn.Sequential(
@@ -454,8 +456,8 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
         Internal helper to compute:
           - modality attention [alpha_rgb, alpha_depth]
           - fused representation z_fused
-        """
-        z_rgb = 0.5 * z_rgb
+        """        
+        z_early = torch.cat([z_rgb, z_depth], dim=-1)
         
         h = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
 

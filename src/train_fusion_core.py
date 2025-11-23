@@ -119,9 +119,8 @@ def train_one_epoch(
             cls_loss
             + lambda_contrastive * contr_loss
             + lambda_var_reg * var_reg
-            + 0.01 * attn_entropy
         )
-
+        
         loss.backward()
         optimizer.step()
 
