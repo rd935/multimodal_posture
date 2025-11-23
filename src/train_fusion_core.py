@@ -65,6 +65,7 @@ def train_one_epoch(
     optimizer,
     lambda_contrastive: float,
     lambda_var_reg: float,
+    lambda_attn_entropy: float,
 ):
     """
     Train for one epoch.
@@ -119,6 +120,7 @@ def train_one_epoch(
             cls_loss
             + lambda_contrastive * contr_loss
             + lambda_var_reg * var_reg
+            - lambda_attn_entropy * attn_entropy
         )
         
         loss.backward()
@@ -315,6 +317,7 @@ def main():
 
     lambda_contrastive = float(train_cfg.get("lambda_contrastive", 0.01))
     lambda_var_reg = float(train_cfg.get("lambda_uncertainty_reg", 0.001))
+    lambda_attn_entropy = float(train_cfg.get("lambda_attn_entropy", 0.01))
 
     batch_size = int(train_cfg.get("batch_size", 8))
     rgb_frames = int(data_cfg.get("rgb_frames", 16))
@@ -406,6 +409,7 @@ def main():
             optimizer,
             lambda_contrastive=lambda_contrastive,
             lambda_var_reg=lambda_var_reg,
+            lambda_attn_entropy=lambda_attn_entropy,
         )
 
         (

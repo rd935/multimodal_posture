@@ -446,32 +446,62 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
             z_depth = F.normalize(z_depth, dim=-1)
         return z_depth
 
-    # ---------- attention fusion ----------
+        # ---------- attention + uncertainty fusion ----------
     def _attention_fuse(
         self,
         z_rgb: torch.Tensor,
         z_depth: torch.Tensor,
+        logvar_rgb: torch.Tensor,
+        logvar_depth: torch.Tensor,
+        tau: float = 1.0,
     ):
         """
-        Internal helper to compute:
+        Compute:
           - modality attention [alpha_rgb, alpha_depth]
+          - uncertainty-modulated weights
           - fused representation z_fused
-        """        
-        z_early = torch.cat([z_rgb, z_depth], dim=-1)
-        
-        h = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
 
-        attn_logits = self.attn_mlp(h)          # (B, 2)
-        modality_attention = F.softmax(attn_logits, dim=-1)  # (B, 2)
+        Args:
+            z_rgb, z_depth: (B, D)
+            logvar_rgb, logvar_depth: (B, 1)
+        Returns:
+            z_fused: (B, 2*D)
+            modality_attention: (B, 2) after combining attention + uncertainty
+        """
+        # base early fusion representation
+        z_early = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
+
+        # learned attention over modalities
+        h = z_early
+        attn_logits = self.attn_mlp(h)                 # (B, 2)
+        attn_probs = F.softmax(attn_logits / tau, dim=-1)  # (B, 2)
+
+        # uncertainty-based reliability: larger variance -> smaller weight
+        # logvar is log(σ²), so exp(-logvar) ~ 1/σ²
+        reli_rgb = torch.exp(-logvar_rgb)   # (B, 1)
+        reli_depth = torch.exp(-logvar_depth)  # (B, 1)
+        reli = torch.cat([reli_rgb, reli_depth], dim=-1)     # (B, 2)
+        reli = reli / (reli.sum(dim=-1, keepdim=True) + 1e-8)
+
+        # combine attention and uncertainty multiplicatively, then renormalize
+        modality_attention = attn_probs * reli
+        modality_attention = modality_attention / (
+            modality_attention.sum(dim=-1, keepdim=True) + 1e-8
+        )  # (B, 2)
 
         alpha_rgb = modality_attention[:, 0:1]    # (B, 1)
         alpha_depth = modality_attention[:, 1:2]  # (B, 1)
 
-        z_rgb_w = alpha_rgb * z_rgb               # (B, D)
-        z_depth_w = alpha_depth * z_depth         # (B, D)
+        # gated embeddings
+        z_rgb_w = alpha_rgb * z_rgb
+        z_depth_w = alpha_depth * z_depth
+        z_gated = torch.cat([z_rgb_w, z_depth_w], dim=-1)  # (B, 2*D)
 
-        z_fused = torch.cat([z_rgb_w, z_depth_w], dim=-1)  # (B, 2*D)
+        # residual mix: stay close to early fusion but allow gating to refine
+        z_fused = 0.5 * z_early + 0.5 * z_gated
+
         return z_fused, modality_attention
+
 
     # ---------- uncertainty heads ----------
     def _predict_logvars(
@@ -554,8 +584,13 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
         z_rgb = self.encode_rgb(rgb)
         z_depth = self.encode_depth(depth)
 
-        # attention fusion
-        z_fused, modality_attention = self._attention_fuse(z_rgb, z_depth)
+        # always compute log-variances so they can modulate fusion
+        logvar_rgb, logvar_depth = self._predict_logvars(z_rgb, z_depth)
+
+        # attention + uncertainty fusion
+        z_fused, modality_attention = self._attention_fuse(
+            z_rgb, z_depth, logvar_rgb, logvar_depth
+        )
         logits = self.fusion_mlp(z_fused)
 
         # If nothing else requested, just return logits
