@@ -476,18 +476,14 @@ class MultimodalRGBDAttnContrastiveUncertainty(nn.Module):
         attn_logits = self.attn_mlp(h)                 # (B, 2)
         attn_probs = F.softmax(attn_logits / tau, dim=-1)  # (B, 2)
 
-        # uncertainty-based reliability: larger variance -> smaller weight
-        # logvar is log(σ²), so exp(-logvar) ~ 1/σ²
-        reli_rgb = torch.exp(-logvar_rgb)   # (B, 1)
+        # --- keep reliability for analysis/regularization only ---
+        reli_rgb = torch.exp(-logvar_rgb)      # (B, 1)
         reli_depth = torch.exp(-logvar_depth)  # (B, 1)
         reli = torch.cat([reli_rgb, reli_depth], dim=-1)     # (B, 2)
         reli = reli / (reli.sum(dim=-1, keepdim=True) + 1e-8)
 
-        # combine attention and uncertainty multiplicatively, then renormalize
-        modality_attention = attn_probs * reli
-        modality_attention = modality_attention / (
-            modality_attention.sum(dim=-1, keepdim=True) + 1e-8
-        )  # (B, 2)
+        # For classification gating, use pure attention (this matches the strong baseline)
+        modality_attention = attn_probs  # (B, 2)
 
         alpha_rgb = modality_attention[:, 0:1]    # (B, 1)
         alpha_depth = modality_attention[:, 1:2]  # (B, 1)

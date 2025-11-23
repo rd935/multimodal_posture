@@ -98,7 +98,7 @@ def train_one_epoch(
         )
 
         # ----- (1) classification is the main objective -----
-        cls_loss = F.cross_entropy(logits, labels, label_smoothing=0.1)  # scalar
+        cls_loss = F.cross_entropy(logits, labels)  # scalar
 
         # ----- (2) contrastive loss (auxiliary) -----
         proj_rgb = extras["proj_rgb"]
@@ -366,25 +366,13 @@ def main():
         freeze_backbone=freeze_backbone
     ).to(DEVICE)
 
-    # Two-LR optimizer: gentle on backbones, faster on heads
-    backbone_params = []
-    head_params = []
-    for name, p in model.named_parameters():
-        if not p.requires_grad:
-            continue
-        if "backbone" in name:
-            backbone_params.append(p)
-        else:
-            head_params.append(p)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
-    print(f"[DEBUG] core: #backbone_params={len(backbone_params)}, #head_params={len(head_params)}")
-
+    # --- SIMPLE OPTIMIZER LIKE ATTENTION BASELINE ---
     optimizer = Adam(
-        [
-            {"params": backbone_params, "lr": lr},
-            {"params": head_params, "lr": lr * 3.0},
-        ],
-        weight_decay=5e-4,
+        model.parameters(),
+        lr=lr,         # same lr from YAML (e.g. 1e-4)
+        weight_decay=1e-4,
     )
     
     best_val_loss = float("inf")
@@ -441,14 +429,14 @@ def main():
             f"val_loss={val_loss:.4f}, val_acc={val_acc:.4f}"
         )
 
-        # checkpoint + early stopping on val_loss
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        # checkpoint + early stopping on **val_acc**
+        if val_acc > best_val_acc:
             best_val_acc = val_acc
+            best_val_loss = val_loss
             best_epoch = epoch
             epochs_no_improve = 0
             torch.save(model.state_dict(), ckpt_dir / "fusion_core_best.pt")
-            print(f"  [*] New best val_loss={val_loss:.4f}, checkpoint saved.")
+            print(f"  [*] New best val_acc={val_acc:.4f}, checkpoint saved.")
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
