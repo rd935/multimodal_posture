@@ -28,6 +28,6 @@ model:
   attn_hidden_dim: 256
   proj_dim: 128
   pretrained: true
-  normalize_embeddings: true
+  normalize_embeddings: false
   freeze_backbone: false
 

@@ -205,11 +205,6 @@ class MultimodalRGBDAttentionFusion(nn.Module):
             nn.Linear(attn_hidden_dim, 2),
         )
 
-        last_attn_linear = self.attn_mlp[-1]
-        nn.init.zeros_(last_attn_linear.weight)
-        with torch.no_grad():
-            last_attn_linear.bias[:] = torch.tensor([-1.0, 2.0], dtype=last_attn_linear.bias.dtype, device=last_attn_linear.bias.device)
-
         # --------- classifier on fused representation ----------
         # input: concat [z_rgb_w, z_depth_w] -> (B, 2*D)
         self.fusion_mlp = nn.Sequential(
@@ -256,9 +251,7 @@ class MultimodalRGBDAttentionFusion(nn.Module):
             logits: (B, num_classes)
             attn_info (optional): {"modality_attention": (B, 2)}
         """
-
-        z_rgb = 0.5 * z_rgb
-
+        
         # concat embeddings
         h = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
 

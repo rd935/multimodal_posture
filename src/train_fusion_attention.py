@@ -268,6 +268,7 @@ def main():
     attn_hidden_dim = int(model_cfg.get("attn_hidden_dim", 256))
     pretrained = bool(model_cfg.get("pretrained", True))
     freeze_backbone = bool(model_cfg.get("freeze_backbone", True))
+    normalize_embeddings = bool(model_cfg.get("normalize_embeddings", False))
 
     model = MultimodalRGBDAttentionFusion(
         num_classes=num_classes,
@@ -275,32 +276,17 @@ def main():
         fusion_hidden_dim=fusion_hidden_dim,
         attn_hidden_dim=attn_hidden_dim,
         pretrained=pretrained,
-        normalize_embeddings=True,
+        normalize_embeddings=normalize_embeddings,
         freeze_backbone=freeze_backbone,
     ).to(DEVICE)
 
 
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
-    # Two-LR optimizer: smaller LR for backbones, larger LR for fusion/attn heads
-    backbone_params = []
-    head_params = []
-    for name, p in model.named_parameters():
-        if not p.requires_grad:
-            continue
-        if "backbone" in name:
-            backbone_params.append(p)
-        else:
-            head_params.append(p)
-
-    print(f"[DEBUG] #backbone_params={len(backbone_params)}, #head_params={len(head_params)}")
-
     optimizer = Adam(
-        [
-            {"params": backbone_params, "lr": lr},          # e.g. 1e-4
-            {"params": head_params, "lr": lr * 3.0},        # e.g. 3e-4
-        ],
-        weight_decay=5e-4,  # bit stronger regularization
+        model.parameters(),
+        lr=lr,           # from YAML, e.g. 1e-4
+        weight_decay=1e-4,
     )
     
     best_val_acc = 0.0
