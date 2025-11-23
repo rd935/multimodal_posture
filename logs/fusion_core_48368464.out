@@ -1,0 +1,68 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 1
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_core.yaml
+[DEBUG] core: #backbone_params=120, #head_params=28
+Epoch 01 | train_loss=3.3146, train_cls=3.2942, train_contrast=2.0169, train_acc=0.0464 | val_loss=3.2733, val_acc=0.0651
+  [*] New best val_loss=3.2733, checkpoint saved.
+Epoch 02 | train_loss=3.2200, train_cls=3.2046, train_contrast=1.5250, train_acc=0.1707 | val_loss=3.1217, val_acc=0.1674
+  [*] New best val_loss=3.1217, checkpoint saved.
+Epoch 03 | train_loss=2.9626, train_cls=2.9486, train_contrast=1.3783, train_acc=0.1373 | val_loss=2.6963, val_acc=0.1581
+  [*] New best val_loss=2.6963, checkpoint saved.
+Epoch 04 | train_loss=2.6621, train_cls=2.6506, train_contrast=1.1426, train_acc=0.2282 | val_loss=2.6366, val_acc=0.1256
+  [*] New best val_loss=2.6366, checkpoint saved.
+Epoch 05 | train_loss=2.4597, train_cls=2.4482, train_contrast=1.1348, train_acc=0.2857 | val_loss=2.2463, val_acc=0.2326
+  [*] New best val_loss=2.2463, checkpoint saved.
+Epoch 06 | train_loss=2.3101, train_cls=2.2991, train_contrast=1.0893, train_acc=0.3414 | val_loss=2.1030, val_acc=0.2791
+  [*] New best val_loss=2.1030, checkpoint saved.
+Epoch 07 | train_loss=2.1968, train_cls=2.1856, train_contrast=1.1109, train_acc=0.3581 | val_loss=2.1473, val_acc=0.2698
+Epoch 08 | train_loss=2.1148, train_cls=2.1032, train_contrast=1.1515, train_acc=0.3711 | val_loss=2.2500, val_acc=0.2465
+Epoch 09 | train_loss=2.0628, train_cls=2.0509, train_contrast=1.1715, train_acc=0.4286 | val_loss=1.8820, val_acc=0.3256
+  [*] New best val_loss=1.8820, checkpoint saved.
+Epoch 10 | train_loss=1.9496, train_cls=1.9371, train_contrast=1.2360, train_acc=0.4768 | val_loss=2.1510, val_acc=0.3256
+Epoch 11 | train_loss=1.8351, train_cls=1.8233, train_contrast=1.1681, train_acc=0.5269 | val_loss=2.0845, val_acc=0.3535
+Epoch 12 | train_loss=1.8494, train_cls=1.8370, train_contrast=1.2301, train_acc=0.5195 | val_loss=2.0293, val_acc=0.2930
+Epoch 13 | train_loss=1.7911, train_cls=1.7780, train_contrast=1.2965, train_acc=0.5529 | val_loss=2.1625, val_acc=0.3023
+Epoch 14 | train_loss=1.7946, train_cls=1.7810, train_contrast=1.3498, train_acc=0.4824 | val_loss=2.0709, val_acc=0.2930
+Epoch 15 | train_loss=1.6621, train_cls=1.6496, train_contrast=1.2441, train_acc=0.5640 | val_loss=1.9754, val_acc=0.3721
+Epoch 16 | train_loss=1.5900, train_cls=1.5775, train_contrast=1.2415, train_acc=0.6030 | val_loss=2.0249, val_acc=0.3442
+[INFO] Early stopping at epoch 16 (best epoch 9)
+[TEST] loss=2.0949, acc=0.4393
+[TEST] Confusion matrix:
+ [[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2 0 2 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0]
+ [0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [3 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 0]
+ [3 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0 0 0 0 2 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 1 0 0 0 0 0 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 3 0 0 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 1 0 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 0 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0]
+ [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3]]
+[TEST] Mean modality attention (overall) [RGB, Depth]: [0.719193 0.280807]
+[TEST] Mean log-variance RGB: -0.1979210376739502
+[TEST] Mean log-variance Depth: -0.23638655245304108
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_confusion_matrix.png
+[INFO] Saved attention heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_attention_heatmap.png
