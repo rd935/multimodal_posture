@@ -12,8 +12,8 @@ train:
   learning_rate: 1e-4
 
   # Loss weights
-  lambda_contrastive: 0.05          # smaller, auxiliary
-  lambda_uncertainty_reg: 0.001     # small regularizer on logvars
+  lambda_contrastive: 0.0005          # smaller, auxiliary
+  lambda_uncertainty_reg: 0.0001     # small regularizer on logvars
   lambda_attn_entropy: 0.01
 
 loader:
