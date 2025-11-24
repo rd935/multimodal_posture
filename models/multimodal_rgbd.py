@@ -410,71 +410,51 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
         self,
         rgb: torch.Tensor,
         depth: torch.Tensor,
-        return_embeddings: bool = True,
+        return_embeddings: bool = False,
         return_attention: bool = True,
-        return_uncertainty: bool = True,
-        return_projections: bool = True,
+        return_uncertainty: bool = False,
+        return_projections: bool = False,
     ):
         """
-        For classification, we DEFER to the parent attention model:
-
-            logits, base_extras = super().forward(...)
-
-        So logits + modality_attention come from the exact same path as
-        MultimodalRGBDAttentionFusion. We only add extra heads on top.
+        For now: make classification + attention EXACTLY match the parent
+        attention model. Extra heads are only computed if explicitly requested.
         """
-        need_extras = return_embeddings or return_attention or return_uncertainty or return_projections
+        # Always get logits + attention from parent, with *no* extra embeddings.
+        # This mirrors how the baseline is used in train_fusion_attention.py.
+        logits, base_extras = super().forward(
+            rgb,
+            depth,
+            return_embeddings=False,
+            return_attention=True,
+        )
 
-        if need_extras:
-            # Ask parent for embeddings + attention
-            logits, base_extras = super().forward(
-                rgb,
-                depth,
-                return_embeddings=True,
-                return_attention=True,
-            )
-        else:
-            # Only logits, no extras
-            logits = super().forward(
-                rgb,
-                depth,
-                return_embeddings=False,
-                return_attention=False,
-            )
-            base_extras = {}
-
-        if not need_extras:
+        # If caller only cares about logits (like in future uncertainty-weighted eval),
+        # we can early-return.
+        if not (return_embeddings or return_attention or return_uncertainty or return_projections):
             return logits
 
-        extras: Dict[str, Any] = {}
-
-        # Get embeddings from parent (or recompute if missing)
-        if "z_rgb" in base_extras and "z_depth" in base_extras:
-            z_rgb = base_extras["z_rgb"]
-            z_depth = base_extras["z_depth"]
-        else:
-            z_rgb = self.encode_rgb(rgb)
-            z_depth = self.encode_depth(depth)
+        extras = {}
 
         # Attention from parent
         if return_attention and "modality_attention" in base_extras:
             extras["modality_attention"] = base_extras["modality_attention"]
 
-        # Embeddings
-        if return_embeddings:
-            extras["z_rgb"] = z_rgb
-            extras["z_depth"] = z_depth
+        # If we need embeddings for future stuff, recompute them here:
+        if return_embeddings or return_uncertainty or return_projections:
+            z_rgb = self.encode_rgb(rgb)
+            z_depth = self.encode_depth(depth)
+            if return_embeddings:
+                extras["z_rgb"] = z_rgb
+                extras["z_depth"] = z_depth
 
-        # Contrastive projections
-        if return_projections:
-            proj_rgb, proj_depth = self._project_for_contrastive(z_rgb, z_depth)
-            extras["proj_rgb"] = proj_rgb
-            extras["proj_depth"] = proj_depth
+            if return_projections:
+                proj_rgb, proj_depth = self._project_for_contrastive(z_rgb, z_depth)
+                extras["proj_rgb"] = proj_rgb
+                extras["proj_depth"] = proj_depth
 
-        # Uncertainty
-        if return_uncertainty:
-            logvar_rgb, logvar_depth = self._predict_logvars(z_rgb, z_depth)
-            extras["logvar_rgb"] = logvar_rgb
-            extras["logvar_depth"] = logvar_depth
+            if return_uncertainty:
+                logvar_rgb, logvar_depth = self._predict_logvars(z_rgb, z_depth)
+                extras["logvar_rgb"] = logvar_rgb
+                extras["logvar_depth"] = logvar_depth
 
         return logits, extras

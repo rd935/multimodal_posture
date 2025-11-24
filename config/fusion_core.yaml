@@ -6,22 +6,17 @@ data:
   resize: [224, 224]
 
 train:
-  epochs: 40
-  patience: 10
-  batch_size: 8
+  epochs: 30
+  patience: 7
   learning_rate: 1e-4
+  batch_size: 8
 
-  # For this run: NO aux losses, just like attention
   lambda_contrastive: 0.0
   lambda_uncertainty_reg: 0.0
   lambda_attn_entropy: 0.01   # same scale as attention fusion
 
 loader:
   num_workers: 4
-
-logging:
-  ckpt_dir: checkpoints/fusion_core
-  results_dir: results/fusion_core
 
 model:
   embed_dim: 256
@@ -31,3 +26,7 @@ model:
   pretrained: true
   freeze_backbone: false
   normalize_embeddings: true
+
+logging:
+  ckpt_dir: checkpoints/fusion_core
+  results_dir: results/fusion_core
