@@ -79,7 +79,7 @@ def train_one_epoch(
 
         optimizer.zero_grad()
 
-        # we only need logits + modality_attention for the loss
+        # Only need logits + attention, just like attention baseline
         logits, extras = model(
             rgb,
             depth,
@@ -96,7 +96,6 @@ def train_one_epoch(
         attn_probs = extras["modality_attention"]  # (B, 2)
         attn_entropy = -(attn_probs * torch.log(attn_probs + 1e-8)).sum(dim=-1).mean()
 
-        # identical structure to attention_baseline: small entropy regularizer
         loss = loss_ce + lambda_attn_entropy * attn_entropy
 
         loss.backward()
@@ -113,7 +112,6 @@ def train_one_epoch(
         "loss": total_loss / total_samples,
         "acc": total_correct / total_samples,
     }
-
 
 # ---------- EVAL: like your old core eval, but no aux terms in loss ----------
 @torch.no_grad()
