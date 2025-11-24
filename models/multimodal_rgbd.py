@@ -312,7 +312,6 @@ class MultimodalRGBDAttentionFusion(nn.Module):
 
         return logits, extras
 
-
 class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
     """
     Core model: EXACT same classification/attention pipeline as
@@ -321,9 +320,8 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
       - contrastive projections (proj_rgb, proj_depth)
       - uncertainty (logvar_rgb, logvar_depth)
 
-    Classification logits and modality_attention are computed by the parent
-    class, so training with CE + entropy is mathematically identical to the
-    attention baseline.
+    When you train with only CE + attn entropy (no contrastive/uncertainty
+    in the loss), this behaves identically to the attention baseline.
     """
 
     def __init__(
@@ -337,8 +335,8 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
         normalize_embeddings: bool = True,
         freeze_backbone: bool = False,
     ):
-        # Call attention fusion __init__ to set up backbones, projections,
-        # attention MLP, and fusion classifier IDENTICALLY.
+        # Set up backbones, projections, attn MLP, fusion MLP
+        # EXACTLY like the attention baseline
         super().__init__(
             num_classes=num_classes,
             embed_dim=embed_dim,
@@ -376,8 +374,13 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
             nn.Linear(var_hidden_dim, 1),
         )
 
-    def _predict_logvars(self, z_rgb: torch.Tensor, z_depth: torch.Tensor, eps: float = 1e-6):
-        """Predict per-sample log-variance for each modality (scalar)."""
+    # ---------- uncertainty ----------
+    def _predict_logvars(
+        self,
+        z_rgb: torch.Tensor,
+        z_depth: torch.Tensor,
+        eps: float = 1e-6,
+    ):
         raw_rgb = self.rgb_var_head(z_rgb)        # (B, 1)
         raw_depth = self.depth_var_head(z_depth)  # (B, 1)
 
@@ -388,8 +391,13 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
         logvar_depth = torch.log(var_depth)       # (B, 1)
         return logvar_rgb, logvar_depth
 
-    def _project_for_contrastive(self, z_rgb: torch.Tensor, z_depth: torch.Tensor, normalize: bool = True):
-        """Project embeddings to contrastive space."""
+    # ---------- contrastive ----------
+    def _project_for_contrastive(
+        self,
+        z_rgb: torch.Tensor,
+        z_depth: torch.Tensor,
+        normalize: bool = True,
+    ):
         proj_rgb = self.rgb_contrastive_head(z_rgb)
         proj_depth = self.depth_contrastive_head(z_depth)
         if normalize:
@@ -397,6 +405,7 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
             proj_depth = F.normalize(proj_depth, dim=-1)
         return proj_rgb, proj_depth
 
+    # ---------- forward ----------
     def forward(
         self,
         rgb: torch.Tensor,
@@ -411,18 +420,13 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
 
             logits, base_extras = super().forward(...)
 
-        So logits + modality_attention are computed by exactly the same
-        code as MultimodalRGBDAttentionFusion.
-
-        We then optionally add:
-          - proj_rgb/proj_depth
-          - logvar_rgb/logvar_depth
-          - z_rgb/z_depth if requested
+        So logits + modality_attention come from the exact same path as
+        MultimodalRGBDAttentionFusion. We only add extra heads on top.
         """
-        need_extras_from_parent = return_embeddings or return_attention or return_uncertainty or return_projections
+        need_extras = return_embeddings or return_attention or return_uncertainty or return_projections
 
-        if need_extras_from_parent:
-            # Ask parent for embeddings + attention so we don't duplicate logic.
+        if need_extras:
+            # Ask parent for embeddings + attention
             logits, base_extras = super().forward(
                 rgb,
                 depth,
@@ -430,6 +434,7 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
                 return_attention=True,
             )
         else:
+            # Only logits, no extras
             logits = super().forward(
                 rgb,
                 depth,
@@ -438,13 +443,12 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
             )
             base_extras = {}
 
-        # If user only wants logits, we're done.
-        if not need_extras_from_parent:
+        if not need_extras:
             return logits
 
         extras: Dict[str, Any] = {}
 
-        # Ensure we have embeddings
+        # Get embeddings from parent (or recompute if missing)
         if "z_rgb" in base_extras and "z_depth" in base_extras:
             z_rgb = base_extras["z_rgb"]
             z_depth = base_extras["z_depth"]
@@ -452,8 +456,8 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
             z_rgb = self.encode_rgb(rgb)
             z_depth = self.encode_depth(depth)
 
-        # Always propagate attention if parent computed it
-        if "modality_attention" in base_extras and return_attention:
+        # Attention from parent
+        if return_attention and "modality_attention" in base_extras:
             extras["modality_attention"] = base_extras["modality_attention"]
 
         # Embeddings
