@@ -35,19 +35,12 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
 
+# ---------- contrastive loss (still available for future use, but NOT used in this run) ----------
 def contrastive_loss_rgb_depth(
     proj_rgb: torch.Tensor,
     proj_depth: torch.Tensor,
     temperature: float = 0.1,
 ) -> torch.Tensor:
-    """
-    Symmetric InfoNCE-style contrastive loss between RGB and Depth projections.
-
-    proj_rgb:   (B, D)
-    proj_depth: (B, D)
-    """
-    # proj_rgb/proj_depth should already be normalized by the model,
-    # but we normalize again here for safety.
     proj_rgb = F.normalize(proj_rgb, dim=-1)
     proj_depth = F.normalize(proj_depth, dim=-1)
 
@@ -56,38 +49,28 @@ def contrastive_loss_rgb_depth(
 
     loss_i = F.cross_entropy(logits, labels)
     loss_j = F.cross_entropy(logits.T, labels)
-
     return 0.5 * (loss_i + loss_j)
 
 
+# ---------- TRAIN: match attention fusion training loop ----------
 def train_one_epoch(
     model: nn.Module,
     loader,
     optimizer,
     criterion,
-    lambda_contrastive: float,
-    lambda_var_reg: float,
-    lambda_attn_entropy: float,
-    epoch: int,
-    contrastive_warmup: int = 5,
+    lambda_attn_entropy: float = 0.01,
 ):
     """
-    Train for one epoch.
+    Train for one epoch using the SAME objective as the attention fusion baseline:
 
-    - Main objective: classification cross-entropy (with label smoothing via `criterion`)
-    - Auxiliary: RGB-Depth contrastive alignment (InfoNCE)
-    - Auxiliary: small regularization on uncertainty log-variances
-    - Auxiliary: attention entropy regularizer (encourages sharper attention)
+        loss = CE(logits, labels) + lambda_attn_entropy * H(attention)
+
+    No contrastive or uncertainty regularization terms here.
     """
     model.train()
     total_loss = 0.0
-    total_cls_loss = 0.0
-    total_contrastive_loss = 0.0
     total_correct = 0
     total_samples = 0
-
-    # only apply aux losses after a few epochs
-    use_aux = epoch > contrastive_warmup
 
     for batch in loader:
         rgb = batch["rgb"].to(DEVICE)
@@ -96,55 +79,31 @@ def train_one_epoch(
 
         optimizer.zero_grad()
 
+        # we only need logits + modality_attention for the loss
         logits, extras = model(
             rgb,
             depth,
-            return_embeddings=True,
+            return_embeddings=False,
             return_attention=True,
-            return_uncertainty=True,
-            return_projections=True,
+            return_uncertainty=False,
+            return_projections=False,
         )
 
-        # ----- (1) classification is the main objective -----
-        cls_loss = criterion(logits, labels)
+        # main classification loss
+        loss_ce = criterion(logits, labels)
 
-        # ----- (2) contrastive loss (auxiliary) -----
-        proj_rgb = extras["proj_rgb"]
-        proj_depth = extras["proj_depth"]
-        contr_loss = contrastive_loss_rgb_depth(proj_rgb, proj_depth)
-
-        # ----- (3) small regularizer on logvars (to keep them bounded) -----
-        logvar_rgb = extras["logvar_rgb"].squeeze(-1)  # (B,)
-        logvar_depth = extras["logvar_depth"].squeeze(-1)
-        # push logvars gently toward 0 so they don’t explode
-        var_reg = (logvar_rgb**2 + logvar_depth**2).mean()
-
-        # ----- (4) attention entropy regularizer -----
+        # entropy of modality attention: -(p log p) averaged
         attn_probs = extras["modality_attention"]  # (B, 2)
         attn_entropy = -(attn_probs * torch.log(attn_probs + 1e-8)).sum(dim=-1).mean()
 
-        aux_scale = 1.0 if use_aux else 0.0
-
-        # ----- total loss -----
-        # NOTE: positive lambda_attn_entropy here; this matches the attention fusion baseline
-        # behaviour (minimizing loss encourages lower entropy = sharper attention).
-        loss = (
-            cls_loss
-            + aux_scale
-            * (
-                lambda_contrastive * contr_loss
-                + lambda_var_reg * var_reg
-                + lambda_attn_entropy * attn_entropy
-            )
-        )
+        # identical structure to attention_baseline: small entropy regularizer
+        loss = loss_ce + lambda_attn_entropy * attn_entropy
 
         loss.backward()
         optimizer.step()
 
         batch_size = labels.size(0)
         total_loss += loss.item() * batch_size
-        total_cls_loss += cls_loss.item() * batch_size
-        total_contrastive_loss += contr_loss.item() * batch_size
 
         preds = logits.argmax(dim=1)
         total_correct += (preds == labels).sum().item()
@@ -152,18 +111,19 @@ def train_one_epoch(
 
     return {
         "loss": total_loss / total_samples,
-        "cls_loss": total_cls_loss / total_samples,
-        "contrastive_loss": total_contrastive_loss / total_samples,
         "acc": total_correct / total_samples,
     }
 
 
+# ---------- EVAL: like your old core eval, but no aux terms in loss ----------
 @torch.no_grad()
 def evaluate_with_extras(model, loader, num_classes):
     """
     Evaluate model for classification metrics, attention, and uncertainty stats.
 
-    Uses plain CE (no uncertainty weighting) for reporting loss.
+    Uses plain CE (no uncertainty/contrastive in the loss). We STILL query
+    uncertainty and contrastive heads so you can analyze them later, but they
+    do not affect the training objective.
     """
     model.eval()
     total_loss = 0.0
@@ -201,7 +161,6 @@ def evaluate_with_extras(model, loader, num_classes):
         )
 
         loss = criterion(logits, labels)
-
         preds = logits.argmax(dim=1)
 
         batch_size = labels.size(0)
@@ -235,13 +194,11 @@ def evaluate_with_extras(model, loader, num_classes):
     all_labels = np.concatenate(all_labels)
     cm = confusion_matrix(all_labels, all_preds)
 
-    # attention aggregates
     mean_modality_attention_overall = modality_att_sum_overall / max(overall_count, 1)
     mean_modality_attention_per_class = modality_att_sum_per_class / np.maximum(
         class_counts[:, None], 1
     )
 
-    # uncertainty aggregates
     logvar_rgb_all = np.concatenate(logvar_rgb_list, axis=0)
     logvar_depth_all = np.concatenate(logvar_depth_list, axis=0)
     mean_logvar_rgb = float(logvar_rgb_all.mean())
@@ -326,7 +283,6 @@ def main():
     # -----------------------------------------------------
     # Load YAML config
     # -----------------------------------------------------
-    # Default config path: config/fusion_core.yaml
     config_path = (
         Path(sys.argv[1]) if len(sys.argv) > 1 else PROJECT_ROOT / "config" / "fusion_core.yaml"
     )
@@ -349,11 +305,7 @@ def main():
     patience = int(train_cfg.get("patience", 3))
     lr = float(train_cfg.get("learning_rate", 1e-4))
 
-    # ↓↓↓ ONLY CHANGE HERE: gentler default weights for aux losses ↓↓↓
-    lambda_contrastive = float(train_cfg.get("lambda_contrastive", 0.0005))
-    lambda_var_reg = float(train_cfg.get("lambda_uncertainty_reg", 0.0001))
     lambda_attn_entropy = float(train_cfg.get("lambda_attn_entropy", 0.01))
-    # ↑↑↑ everything else unchanged ↑↑↑
 
     batch_size = int(train_cfg.get("batch_size", 8))
     rgb_frames = int(data_cfg.get("rgb_frames", 16))
@@ -405,7 +357,6 @@ def main():
     # same as attention fusion: label-smoothed CE
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
-    # --- SIMPLE OPTIMIZER LIKE ATTENTION BASELINE ---
     optimizer = Adam(
         model.parameters(),
         lr=lr,
@@ -419,8 +370,6 @@ def main():
     history = {
         "epoch": [],
         "train_loss": [],
-        "train_cls_loss": [],
-        "train_contrastive_loss": [],
         "train_acc": [],
         "val_loss": [],
         "val_acc": [],
@@ -433,10 +382,7 @@ def main():
             train_loader,
             optimizer,
             criterion=criterion,
-            lambda_contrastive=lambda_contrastive,
-            lambda_var_reg=lambda_var_reg,
             lambda_attn_entropy=lambda_attn_entropy,
-            epoch=epoch,
         )
 
         (
@@ -453,18 +399,13 @@ def main():
 
         history["epoch"].append(epoch)
         history["train_loss"].append(train_stats["loss"])
-        history["train_cls_loss"].append(train_stats["cls_loss"])
-        history["train_contrastive_loss"].append(train_stats["contrastive_loss"])
         history["train_acc"].append(train_stats["acc"])
         history["val_loss"].append(val_loss)
         history["val_acc"].append(val_acc)
 
         print(
             f"Epoch {epoch:02d} | "
-            f"train_loss={train_stats['loss']:.4f}, "
-            f"train_cls={train_stats['cls_loss']:.4f}, "
-            f"train_contrast={train_stats['contrastive_loss']:.4f}, "
-            f"train_acc={train_stats['acc']:.4f} | "
+            f"train_loss={train_stats['loss']:.4f}, train_acc={train_stats['acc']:.4f} | "
             f"val_loss={val_loss:.4f}, val_acc={val_acc:.4f}"
         )
 
