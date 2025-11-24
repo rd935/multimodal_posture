@@ -416,6 +416,9 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
             log_var_rgb = self.rgb_var_head(z_rgb).squeeze(-1)
             log_var_depth = self.depth_var_head(z_depth).squeeze(-1)
 
+            log_var_rgb = torch.clamp(log_var_rgb, min=-3.0, max=3.0)
+            log_var_depth = torch.clamp(log_var_depth, min=-3.0, max=3.0)
+
             extras["log_var_rgb"] = log_var_rgb
             extras["log_var_depth"] = log_var_depth
 
