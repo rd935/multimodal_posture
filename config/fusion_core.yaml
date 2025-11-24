@@ -6,27 +6,28 @@ data:
   resize: [224, 224]
 
 train:
-  epochs: 30
-  patience: 7
+  epochs: 40
+  patience: 6
   learning_rate: 1e-4
   batch_size: 8
 
-  lambda_contrastive: 0.0
-  lambda_uncertainty_reg: 0.0
-  lambda_attn_entropy: 0.01   # same scale as attention fusion
-
 loader:
   num_workers: 4
+
+logging:
+  ckpt_dir: checkpoints/fusion_core
+  results_dir: results/fusion_core
 
 model:
   embed_dim: 256
   fusion_hidden_dim: 512
   attn_hidden_dim: 256
-  proj_dim: 128
   pretrained: true
-  freeze_backbone: false
-  normalize_embeddings: true
+  freeze_backbone: true
+  normalize_embeddings: false
 
-logging:
-  ckpt_dir: checkpoints/fusion_core
-  results_dir: results/fusion_core
+loss:
+  contrastive_temperature: 0.1
+  contrastive_weight: 0.1           # tune: e.g. 0.05–0.2
+  uncertainty_reg_weight: 0.01      # keeps log-variance bounded
+  attn_entropy_weight: 0.01         # similar to your attention model, can reduce if too strong

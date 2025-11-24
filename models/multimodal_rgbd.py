@@ -312,16 +312,20 @@ class MultimodalRGBDAttentionFusion(nn.Module):
 
         return logits, extras
 
-class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
+class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
     """
-    Core model: EXACT same classification/attention pipeline as
-    MultimodalRGBDAttentionFusion, plus extra heads for:
+    Core fusion model: attention fusion + uncertainty heads.
 
-      - contrastive projections (proj_rgb, proj_depth)
-      - uncertainty (logvar_rgb, logvar_depth)
+    - Uses the same RGB/Depth encoders and attention fusion as MultimodalRGBDAttentionFusion.
+    - Adds per-modality variance heads (predict log-variance for RGB and Depth embeddings).
+    - Forward can return:
+        - logits
+        - embeddings z_rgb, z_depth
+        - modality attention weights
+        - log-variance for each modality (log_var_rgb, log_var_depth)
 
-    When you train with only CE + attn entropy (no contrastive/uncertainty
-    in the loss), this behaves identically to the attention baseline.
+    Contrastive loss and uncertainty-weighted classification loss are computed in the
+    training script using these outputs.
     """
 
     def __init__(
@@ -330,13 +334,12 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
         embed_dim: int = 256,
         fusion_hidden_dim: int = 512,
         attn_hidden_dim: int = 256,
-        proj_dim: int = 128,
         pretrained: bool = True,
         normalize_embeddings: bool = True,
         freeze_backbone: bool = False,
+        # Optional: store a default contrastive temperature, used only for logging
+        contrastive_temperature: float = 0.1,
     ):
-        # Set up backbones, projections, attn MLP, fusion MLP
-        # EXACTLY like the attention baseline
         super().__init__(
             num_classes=num_classes,
             embed_dim=embed_dim,
@@ -347,114 +350,73 @@ class MultimodalRGBDAttnContrastiveUncertainty(MultimodalRGBDAttentionFusion):
             freeze_backbone=freeze_backbone,
         )
 
-        self.proj_dim = proj_dim
+        self.contrastive_temperature = contrastive_temperature
 
-        # --------- contrastive projection heads ----------
-        self.rgb_contrastive_head = nn.Sequential(
-            nn.Linear(embed_dim, proj_dim),
-            nn.ReLU(inplace=True),
-            nn.Linear(proj_dim, proj_dim),
-        )
-        self.depth_contrastive_head = nn.Sequential(
-            nn.Linear(embed_dim, proj_dim),
-            nn.ReLU(inplace=True),
-            nn.Linear(proj_dim, proj_dim),
-        )
+        # ---------- Uncertainty (variance) heads ----------
+        # Predict per-sample log-variance for each modality from its embedding.
+        # Small MLPs keep extra capacity limited.
+        hidden_var_dim = embed_dim // 2 if embed_dim >= 64 else embed_dim
 
-        # --------- uncertainty (variance) heads ----------
-        var_hidden_dim = attn_hidden_dim // 2 if attn_hidden_dim >= 2 else 16
         self.rgb_var_head = nn.Sequential(
-            nn.Linear(embed_dim, var_hidden_dim),
+            nn.Linear(embed_dim, hidden_var_dim),
             nn.ReLU(inplace=True),
-            nn.Linear(var_hidden_dim, 1),
+            nn.Linear(hidden_var_dim, 1),
         )
+
         self.depth_var_head = nn.Sequential(
-            nn.Linear(embed_dim, var_hidden_dim),
+            nn.Linear(embed_dim, hidden_var_dim),
             nn.ReLU(inplace=True),
-            nn.Linear(var_hidden_dim, 1),
+            nn.Linear(hidden_var_dim, 1),
         )
 
-    # ---------- uncertainty ----------
-    def _predict_logvars(
-        self,
-        z_rgb: torch.Tensor,
-        z_depth: torch.Tensor,
-        eps: float = 1e-6,
-    ):
-        raw_rgb = self.rgb_var_head(z_rgb)        # (B, 1)
-        raw_depth = self.depth_var_head(z_depth)  # (B, 1)
-
-        var_rgb = F.softplus(raw_rgb) + eps
-        var_depth = F.softplus(raw_depth) + eps
-
-        logvar_rgb = torch.log(var_rgb)           # (B, 1)
-        logvar_depth = torch.log(var_depth)       # (B, 1)
-        return logvar_rgb, logvar_depth
-
-    # ---------- contrastive ----------
-    def _project_for_contrastive(
-        self,
-        z_rgb: torch.Tensor,
-        z_depth: torch.Tensor,
-        normalize: bool = True,
-    ):
-        proj_rgb = self.rgb_contrastive_head(z_rgb)
-        proj_depth = self.depth_contrastive_head(z_depth)
-        if normalize:
-            proj_rgb = F.normalize(proj_rgb, dim=-1)
-            proj_depth = F.normalize(proj_depth, dim=-1)
-        return proj_rgb, proj_depth
-
-    # ---------- forward ----------
     def forward(
         self,
         rgb: torch.Tensor,
         depth: torch.Tensor,
         return_embeddings: bool = False,
-        return_attention: bool = True,
+        return_attention: bool = False,
         return_uncertainty: bool = False,
-        return_projections: bool = False,
     ):
         """
-        For now: make classification + attention EXACTLY match the parent
-        attention model. Extra heads are only computed if explicitly requested.
+        rgb:   (B, T, 3, H, W)
+        depth: (B, T, 1, H, W)
+
+        Returns:
+            - If no flags: logits
+            - If any flags: (logits, extras_dict) where extras may contain:
+                "z_rgb", "z_depth",
+                "modality_attention",
+                "log_var_rgb", "log_var_depth"
         """
-        # Always get logits + attention from parent, with *no* extra embeddings.
-        # This mirrors how the baseline is used in train_fusion_attention.py.
-        logits, base_extras = super().forward(
-            rgb,
-            depth,
-            return_embeddings=False,
-            return_attention=True,
+        # Encode modalities (same as attention baseline)
+        z_rgb = self.encode_rgb(rgb)      # (B, D)
+        z_depth = self.encode_depth(depth)  # (B, D)
+
+        # Attention-based fusion and logits
+        logits, attn_info = self.fuse_attention(
+            z_rgb, z_depth, return_attention=return_attention
         )
 
-        # If caller only cares about logits (like in future uncertainty-weighted eval),
-        # we can early-return.
-        if not (return_embeddings or return_attention or return_uncertainty or return_projections):
+        # Build extras dict if needed
+        needs_extras = return_embeddings or return_attention or return_uncertainty
+        if not needs_extras:
             return logits
 
-        extras = {}
+        extras: Dict[str, Any] = {}
 
-        # Attention from parent
-        if return_attention and "modality_attention" in base_extras:
-            extras["modality_attention"] = base_extras["modality_attention"]
+        if return_embeddings:
+            extras["z_rgb"] = z_rgb
+            extras["z_depth"] = z_depth
 
-        # If we need embeddings for future stuff, recompute them here:
-        if return_embeddings or return_uncertainty or return_projections:
-            z_rgb = self.encode_rgb(rgb)
-            z_depth = self.encode_depth(depth)
-            if return_embeddings:
-                extras["z_rgb"] = z_rgb
-                extras["z_depth"] = z_depth
+        if return_attention and attn_info is not None:
+            extras.update(attn_info)  # includes "modality_attention"
 
-            if return_projections:
-                proj_rgb, proj_depth = self._project_for_contrastive(z_rgb, z_depth)
-                extras["proj_rgb"] = proj_rgb
-                extras["proj_depth"] = proj_depth
+        if return_uncertainty:
+            # (B, 1) -> (B,)
+            log_var_rgb = self.rgb_var_head(z_rgb).squeeze(-1)
+            log_var_depth = self.depth_var_head(z_depth).squeeze(-1)
 
-            if return_uncertainty:
-                logvar_rgb, logvar_depth = self._predict_logvars(z_rgb, z_depth)
-                extras["logvar_rgb"] = logvar_rgb
-                extras["logvar_depth"] = logvar_depth
+            extras["log_var_rgb"] = log_var_rgb
+            extras["log_var_depth"] = log_var_depth
 
         return logits, extras
