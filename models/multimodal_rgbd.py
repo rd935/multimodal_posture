@@ -337,7 +337,6 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
         pretrained: bool = True,
         normalize_embeddings: bool = True,
         freeze_backbone: bool = False,
-        # Optional: store a default contrastive temperature, used only for logging
         contrastive_temperature: float = 0.1,
     ):
         super().__init__(
@@ -369,6 +368,13 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
             nn.Linear(hidden_var_dim, 1),
         )
 
+        self.core_classifier = nn.Sequential(
+            nn.Linear(2 * embed_dim, fusion_hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(fusion_hidden_dim, num_classes),
+        )
+
     def forward(
         self,
         rgb: torch.Tensor,
@@ -392,10 +398,26 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
         z_rgb = self.encode_rgb(rgb)      # (B, D)
         z_depth = self.encode_depth(depth)  # (B, D)
 
-        # Attention-based fusion and logits
-        logits, attn_info = self.fuse_attention(
-            z_rgb, z_depth, return_attention=return_attention
-        )
+        # ---------- Attention fusion (copied from baseline, but with core classifier) ----------
+        # Early fusion representation
+        z_early = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
+
+        # Attention logits and weights using the same attn_mlp as the baseline
+        attn_logits = self.attn_mlp(z_early)           # (B, 2)
+        modality_attention = F.softmax(attn_logits, dim=-1)  # (B, 2)
+        alpha_rgb = modality_attention[:, 0:1]         # (B, 1)
+        alpha_depth = modality_attention[:, 1:2]       # (B, 1)
+
+        # Gated embeddings
+        z_rgb_w = alpha_rgb * z_rgb
+        z_depth_w = alpha_depth * z_depth
+        z_gated = torch.cat([z_rgb_w, z_depth_w], dim=-1)  # (B, 2*D)
+
+        # Residual mix (same idea as baseline)
+        z_fused = 0.5 * z_early + 0.5 * z_gated            # (B, 2*D)
+
+        # Core-specific classifier
+        logits = self.core_classifier(z_fused)             # (B, num_classes)
 
         # Build extras dict if needed
         needs_extras = return_embeddings or return_attention or return_uncertainty
@@ -408,9 +430,9 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
             extras["z_rgb"] = z_rgb
             extras["z_depth"] = z_depth
 
-        if return_attention and attn_info is not None:
-            extras.update(attn_info)  # includes "modality_attention"
-
+        if return_attention:
+            extras["modality_attention"] = modality_attention
+            
         if return_uncertainty:
             # (B, 1) -> (B,)
             log_var_rgb = self.rgb_var_head(z_rgb).squeeze(-1)

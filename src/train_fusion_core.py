@@ -358,8 +358,6 @@ def plot_attention_heatmap(
 
 
 def main():
-    set_seed(42)
-
     # -----------------------------------------------------
     # Load YAML config
     # -----------------------------------------------------
@@ -383,6 +381,11 @@ def main():
     model_cfg = cfg.get("model", {})
     loss_cfg = cfg.get("loss", {})
 
+    # -------------------- Set seed from config --------------------------
+    seed = int(train_cfg.get("seed", 42))
+    set_seed(seed)
+    print(f"[INFO] Using seed: {seed}")
+
     epochs = int(train_cfg.get("epochs", 10))
     patience = int(train_cfg.get("patience", 3))
     lr = float(train_cfg.get("learning_rate", 1e-4))
@@ -402,9 +405,6 @@ def main():
     w_contrastive = float(loss_cfg.get("contrastive_weight", 0.1))
     w_uncertainty_reg = float(loss_cfg.get("uncertainty_reg_weight", 0.01))
     w_attn_entropy = float(loss_cfg.get("attn_entropy_weight", 0.01))
-
-    warmup_epochs = int(loss_cfg.get("contrastive_warmup_epochs", 5))
-    unc_start_epoch = int(loss_cfg.get("uncertainty_start_epoch", 10))
 
     # -------------------- Data loaders --------------------
     train_loader, val_loader, test_loader = make_utd_mhad_loaders(
@@ -447,14 +447,16 @@ def main():
         contrastive_temperature=contrastive_temperature,
     ).to(DEVICE)
 
-    # Note: base_criterion returns per-sample loss for weighting
-    base_criterion = nn.CrossEntropyLoss(label_smoothing=0.1, reduction="none")
-    eval_criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    label_smoothing = float(train_cfg.get("label_smoothing", 0.05))
+
+    # Note: base_criterion returns per-sample loss for potential weighting
+    base_criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing, reduction="none")
+    eval_criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
     optimizer = Adam(
         model.parameters(),
         lr=lr,
-        weight_decay=1e-4,
+        weight_decay=5e-4,
     )
 
     best_val_acc = 0.0
@@ -525,7 +527,7 @@ def main():
         val_loader,
         base_criterion,
         contrastive_temperature,
-        w_uncertainty_reg=1e-4,
+        w_uncertainty_reg=w_uncertainty_reg,
         num_classes=num_classes,
         finetune_epochs=15,
         finetune_lr=5e-5,
