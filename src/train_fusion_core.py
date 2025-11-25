@@ -127,6 +127,7 @@ def finetune_uncertainty(
     base_criterion,
     contrastive_temperature: float,
     w_uncertainty_reg: float,
+    num_classes: int,
     finetune_epochs: int = 15,
     finetune_lr: float = 5e-5,
     patience: int = 5,
@@ -209,8 +210,12 @@ def finetune_uncertainty(
 
         # evaluate on val
         val_loss, val_acc, *_ = evaluate_with_attention_core(
-            model, val_loader, nn.CrossEntropyLoss(label_smoothing=0.1), num_classes=None
+            model,
+            val_loader,
+            nn.CrossEntropyLoss(label_smoothing=0.1),
+            num_classes,
         )
+
 
         print(
             f"[FT] Epoch {epoch:02d} | train_loss={train_loss:.4f}, "
@@ -520,11 +525,13 @@ def main():
         val_loader,
         base_criterion,
         contrastive_temperature,
-        w_uncertainty_reg=1e-4,   # tiny
+        w_uncertainty_reg=1e-4,
+        num_classes=num_classes,
         finetune_epochs=15,
         finetune_lr=5e-5,
         patience=5,
     )
+
     print(f"[INFO] Fine-tune best val_acc={ft_best_val:.4f}")
     
     (
