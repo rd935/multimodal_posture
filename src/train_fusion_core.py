@@ -125,18 +125,23 @@ def train_one_epoch_core(
         log_var_rgb = extras["log_var_rgb"]       # (B,)
         log_var_depth = extras["log_var_depth"]   # (B,)
 
-        # Weights ~ 1 / sigma^2 = exp(-log_var)
-        w_rgb = torch.exp(-log_var_rgb)          # (B,)
-        w_depth = torch.exp(-log_var_depth)      # (B,)
+        # Convert to bounded reliability scores in [0,1]
+        # high variance  -> low reliability
+        # low variance   -> high reliability
+        rel_rgb = torch.sigmoid(-log_var_rgb)      # (B,)
+        rel_depth = torch.sigmoid(-log_var_depth)  # (B,)
 
-        # Effective classification weight per sample, mixing modalities by attention
-        # If a modality is both uncertain (low weight) and low-attention, it contributes less.
-        w_eff = alpha_rgb * w_rgb + alpha_depth * w_depth  # (B,)
+        # Effective reliability combining attention + uncertainty
+        # (how much we trust each sample overall)
+        rel_eff = alpha_rgb * rel_rgb + alpha_depth * rel_depth  # (B,)
+
+        # Normalize so the average weight is ~1 (prevents CE from collapsing)
+        rel_eff = rel_eff / (rel_eff.mean().detach() + 1e-6)
 
         # --- Classification loss ---
         if use_uncertainty:
             # uncertainty-weighted classification (turns on after unc_start_epoch)
-            cls_loss = (w_eff * ce_per_sample).mean()
+            cls_loss = (rel_eff * ce_per_sample).mean()
         else:
             # plain classification early in training (what just worked well)
             cls_loss = ce_per_sample.mean()
