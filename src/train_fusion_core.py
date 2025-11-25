@@ -69,6 +69,9 @@ def train_one_epoch_core(
     w_contrastive: float,
     w_uncertainty_reg: float,
     w_attn_entropy: float,
+    epoch: int,
+    warmup_epochs: int = 5,
+    unc_start_epoch: int = 10,
 ):
     """
     Train one epoch with:
@@ -82,6 +85,17 @@ def train_one_epoch_core(
     total_contrastive_loss = 0.0
     total_correct = 0
     total_samples = 0
+
+    if epoch <= warmup_epochs:
+        aux_factor = epoch / float(warmup_epochs)  # 0 → 1
+    else:
+        aux_factor = 1.0
+
+    eff_w_contrastive = w_contrastive * aux_factor
+    eff_w_attn_entropy = w_attn_entropy * aux_factor
+
+    # ---- Turn on uncertainty weighting only after some epochs ----
+    use_uncertainty = epoch >= unc_start_epoch
 
     for batch in loader:
         rgb = batch["rgb"].to(DEVICE)
@@ -119,10 +133,16 @@ def train_one_epoch_core(
         # If a modality is both uncertain (low weight) and low-attention, it contributes less.
         w_eff = alpha_rgb * w_rgb + alpha_depth * w_depth  # (B,)
 
-        cls_loss = (w_eff * ce_per_sample).mean()
+        # --- Classification loss ---
+        if use_uncertainty:
+            # uncertainty-weighted classification (turns on after unc_start_epoch)
+            cls_loss = (w_eff * ce_per_sample).mean()
+        else:
+            # plain classification early in training (what just worked well)
+            cls_loss = ce_per_sample.mean()
 
-        # Regularize predicted variance to avoid blowing up
-        unc_reg = (log_var_rgb + log_var_depth).mean()
+        # --- Uncertainty regularizer (NLL-style, penalize extreme variances) ---
+        unc_reg = 0.5 * (log_var_rgb.exp() + log_var_depth.exp()).mean()
 
         # -------- Contrastive loss on embeddings --------
         z_rgb = extras["z_rgb"]
@@ -130,15 +150,13 @@ def train_one_epoch_core(
         c_loss = contrastive_loss_rgb_depth(z_rgb, z_depth, temperature=temperature)
 
         # -------- Attention entropy regularization --------
-        # Encourage confident (non-uniform) attention:
-        # entropy = -sum p log p; we ADD this term, so it penalizes high entropy (uniform).
         attn_entropy = -(modality_attention * torch.log(modality_attention + 1e-8)).sum(dim=-1).mean()
 
-        # -------- Total loss --------
+        # -------- Total loss with warmup & gated uncertainty --------
         loss = cls_loss \
-            + w_contrastive * c_loss \
-            + w_uncertainty_reg * unc_reg \
-            + w_attn_entropy * attn_entropy
+            + eff_w_contrastive * c_loss \
+            + (w_uncertainty_reg if use_uncertainty else 0.0) * unc_reg \
+            + eff_w_attn_entropy * attn_entropy
 
         loss.backward()
         optimizer.step()
@@ -325,6 +343,9 @@ def main():
     w_uncertainty_reg = float(loss_cfg.get("uncertainty_reg_weight", 0.01))
     w_attn_entropy = float(loss_cfg.get("attn_entropy_weight", 0.01))
 
+    warmup_epochs = int(loss_cfg.get("contrastive_warmup_epochs", 5))
+    unc_start_epoch = int(loss_cfg.get("uncertainty_start_epoch", 10))
+
     # -------------------- Data loaders --------------------
     train_loader, val_loader, test_loader = make_utd_mhad_loaders(
         str(train_csv),
@@ -405,6 +426,9 @@ def main():
             w_contrastive=w_contrastive,
             w_uncertainty_reg=w_uncertainty_reg,
             w_attn_entropy=w_attn_entropy,
+            epoch=epoch,
+            warmup_epochs=warmup_epochs,
+            unc_start_epoch=unc_start_epoch,
         )
 
         val_loss, val_acc, _, _, _, _, _ = evaluate_with_attention_core(
