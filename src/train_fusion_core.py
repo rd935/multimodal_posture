@@ -67,35 +67,11 @@ def train_one_epoch_core(
     base_criterion,  # nn.CrossEntropyLoss with reduction='none'
     temperature: float,
     w_contrastive: float,
-    w_uncertainty_reg: float,
     w_attn_entropy: float,
-    epoch: int,
-    warmup_epochs: int = 5,
-    unc_start_epoch: int = 10,
 ):
-    """
-    Train one epoch with:
-      - classification loss (uncertainty-weighted)
-      - contrastive loss between z_rgb and z_depth
-      - attention entropy regularization
-    """
     model.train()
-    total_loss = 0.0
-    total_cls_loss = 0.0
-    total_contrastive_loss = 0.0
-    total_correct = 0
-    total_samples = 0
-
-    if epoch <= warmup_epochs:
-        aux_factor = epoch / float(warmup_epochs)  # 0 → 1
-    else:
-        aux_factor = 1.0
-
-    eff_w_contrastive = w_contrastive * aux_factor
-    eff_w_attn_entropy = w_attn_entropy * aux_factor
-
-    # ---- Turn on uncertainty weighting only after some epochs ----
-    use_uncertainty = epoch >= unc_start_epoch
+    total_loss = total_cls_loss = total_contrastive_loss = 0.0
+    total_correct = total_samples = 0
 
     for batch in loader:
         rgb = batch["rgb"].to(DEVICE)
@@ -109,78 +85,152 @@ def train_one_epoch_core(
             depth,
             return_embeddings=True,
             return_attention=True,
-            return_uncertainty=True,
+            return_uncertainty=True,   # keep heads training, but don’t use them yet
         )
 
-        # -------- Classification loss (per-sample) --------
-        # base_criterion has reduction='none'
         ce_per_sample = base_criterion(logits, labels)  # (B,)
+        cls_loss = ce_per_sample.mean()                 # 🔴 NO uncertainty weighting here
 
-        # Modality attention weights
         modality_attention = extras["modality_attention"]  # (B, 2)
-        alpha_rgb = modality_attention[:, 0]  # (B,)
-        alpha_depth = modality_attention[:, 1]  # (B,)
 
-        # Uncertainty heads: log-variance per modality
-        log_var_rgb = extras["log_var_rgb"]       # (B,)
-        log_var_depth = extras["log_var_depth"]   # (B,)
-
-        # Convert to bounded reliability scores in [0,1]
-        # high variance  -> low reliability
-        # low variance   -> high reliability
-        rel_rgb = torch.sigmoid(-log_var_rgb)      # (B,)
-        rel_depth = torch.sigmoid(-log_var_depth)  # (B,)
-
-        # Effective reliability combining attention + uncertainty
-        # (how much we trust each sample overall)
-        rel_eff = alpha_rgb * rel_rgb + alpha_depth * rel_depth  # (B,)
-
-        # Normalize so the average weight is ~1 (prevents CE from collapsing)
-        rel_eff = rel_eff / (rel_eff.mean().detach() + 1e-6)
-
-        # --- Classification loss ---
-        if use_uncertainty:
-            # uncertainty-weighted classification (turns on after unc_start_epoch)
-            cls_loss = (rel_eff * ce_per_sample).mean()
-        else:
-            # plain classification early in training (what just worked well)
-            cls_loss = ce_per_sample.mean()
-
-        # --- Uncertainty regularizer (NLL-style, penalize extreme variances) ---
-        unc_reg = 0.5 * (log_var_rgb.exp() + log_var_depth.exp()).mean()
-
-        # -------- Contrastive loss on embeddings --------
+        # contrastive loss
         z_rgb = extras["z_rgb"]
         z_depth = extras["z_depth"]
         c_loss = contrastive_loss_rgb_depth(z_rgb, z_depth, temperature=temperature)
 
-        # -------- Attention entropy regularization --------
+        # attention entropy
         attn_entropy = -(modality_attention * torch.log(modality_attention + 1e-8)).sum(dim=-1).mean()
 
-        # -------- Total loss with warmup & gated uncertainty --------
-        loss = cls_loss \
-            + eff_w_contrastive * c_loss \
-            + (w_uncertainty_reg if use_uncertainty else 0.0) * unc_reg \
-            + eff_w_attn_entropy * attn_entropy
+        loss = cls_loss + w_contrastive * c_loss + w_attn_entropy * attn_entropy
 
         loss.backward()
         optimizer.step()
 
-        # Stats
+        preds = logits.argmax(dim=1)
         total_loss += loss.item() * labels.size(0)
         total_cls_loss += cls_loss.item() * labels.size(0)
         total_contrastive_loss += c_loss.item() * labels.size(0)
-
-        preds = logits.argmax(dim=1)
         total_correct += (preds == labels).sum().item()
         total_samples += labels.size(0)
 
-    avg_loss = total_loss / total_samples
-    avg_cls_loss = total_cls_loss / total_samples
-    avg_contrastive_loss = total_contrastive_loss / total_samples
-    avg_acc = total_correct / total_samples
+    return (
+        total_loss / total_samples,
+        total_cls_loss / total_samples,
+        total_contrastive_loss / total_samples,
+        total_correct / total_samples,
+    )
 
-    return avg_loss, avg_cls_loss, avg_contrastive_loss, avg_acc
+def finetune_uncertainty(
+    model,
+    train_loader,
+    val_loader,
+    base_criterion,
+    contrastive_temperature: float,
+    w_uncertainty_reg: float,
+    finetune_epochs: int = 15,
+    finetune_lr: float = 5e-5,
+    patience: int = 5,
+):
+    """
+    Stage-2: Fine-tune ONLY classifier + uncertainty heads with gentle
+    uncertainty-weighted CE, keeping backbones & fusion mostly fixed.
+    """
+    # 1) Freeze everything
+    for p in model.parameters():
+        p.requires_grad = False
+
+    # 2) Unfreeze classifier + var heads
+    trainable = []
+    for name, p in model.named_parameters():
+        if any(k in name for k in ["classifier", "rgb_var_head", "depth_var_head"]):
+            p.requires_grad = True
+            trainable.append(p)
+
+    optimizer = Adam(trainable, lr=finetune_lr, weight_decay=0.0)
+
+    best_val_acc = 0.0
+    best_state = None
+    epochs_no_improve = 0
+
+    for epoch in range(1, finetune_epochs + 1):
+        model.train()
+        total_loss = total_cls = total_unc = 0.0
+        total_correct = total_samples = 0
+
+        for batch in train_loader:
+            rgb = batch["rgb"].to(DEVICE)
+            depth = batch["depth"].to(DEVICE)
+            labels = batch["label"].to(DEVICE)
+
+            optimizer.zero_grad()
+
+            logits, extras = model(
+                rgb,
+                depth,
+                return_embeddings=True,
+                return_attention=True,
+                return_uncertainty=True,
+            )
+
+            ce_per_sample = base_criterion(logits, labels)  # (B,)
+
+            # attention & uncertainty
+            modality_attention = extras["modality_attention"]  # (B, 2)
+            alpha_rgb = modality_attention[:, 0]
+            alpha_depth = modality_attention[:, 1]
+            log_var_rgb = extras["log_var_rgb"].clamp(-3.0, 3.0)
+            log_var_depth = extras["log_var_depth"].clamp(-3.0, 3.0)
+
+            # reliability in [0,1]
+            rel_rgb = torch.sigmoid(-log_var_rgb)
+            rel_depth = torch.sigmoid(-log_var_depth)
+            rel_eff = alpha_rgb * rel_rgb + alpha_depth * rel_depth  # (B,)
+            rel_eff = rel_eff / (rel_eff.mean().detach() + 1e-6)     # mean ~ 1
+
+            cls_loss = (rel_eff * ce_per_sample).mean()
+
+            # mild variance regularizer
+            unc_reg = 0.5 * (log_var_rgb.exp() + log_var_depth.exp()).mean()
+
+            loss = cls_loss + w_uncertainty_reg * unc_reg
+
+            loss.backward()
+            optimizer.step()
+
+            preds = logits.argmax(dim=1)
+            total_loss += loss.item() * labels.size(0)
+            total_cls += cls_loss.item() * labels.size(0)
+            total_unc += unc_reg.item() * labels.size(0)
+            total_correct += (preds == labels).sum().item()
+            total_samples += labels.size(0)
+
+        train_loss = total_loss / total_samples
+        train_acc = total_correct / total_samples
+
+        # evaluate on val
+        val_loss, val_acc, *_ = evaluate_with_attention_core(
+            model, val_loader, nn.CrossEntropyLoss(label_smoothing=0.1), num_classes=None
+        )
+
+        print(
+            f"[FT] Epoch {epoch:02d} | train_loss={train_loss:.4f}, "
+            f"train_acc={train_acc:.4f} | val_loss={val_loss:.4f}, val_acc={val_acc:.4f}"
+        )
+
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
+            if epochs_no_improve >= patience:
+                print(f"[FT] Early stopping fine-tune at epoch {epoch}")
+                break
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
+
+    return best_val_acc
 
 
 @torch.no_grad()
@@ -417,23 +467,14 @@ def main():
 
     # -------------------- Training loop -------------------
     for epoch in range(1, epochs + 1):
-        (
-            train_loss,
-            train_cls_loss,
-            train_contrast_loss,
-            train_acc,
-        ) = train_one_epoch_core(
+        train_loss, train_cls_loss, train_contrast_loss, train_acc = train_one_epoch_core(
             model,
             train_loader,
             optimizer,
             base_criterion,
             temperature=contrastive_temperature,
             w_contrastive=w_contrastive,
-            w_uncertainty_reg=w_uncertainty_reg,
             w_attn_entropy=w_attn_entropy,
-            epoch=epoch,
-            warmup_epochs=warmup_epochs,
-            unc_start_epoch=unc_start_epoch,
         )
 
         val_loss, val_acc, _, _, _, _, _ = evaluate_with_attention_core(
@@ -472,6 +513,20 @@ def main():
     best_ckpt = ckpt_dir / "fusion_core_best.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
 
+    print("[INFO] Starting Stage-2 uncertainty fine-tune...")
+    ft_best_val = finetune_uncertainty(
+        model,
+        train_loader,
+        val_loader,
+        base_criterion,
+        contrastive_temperature,
+        w_uncertainty_reg=1e-4,   # tiny
+        finetune_epochs=15,
+        finetune_lr=5e-5,
+        patience=5,
+    )
+    print(f"[INFO] Fine-tune best val_acc={ft_best_val:.4f}")
+    
     (
         test_loss,
         test_acc,
