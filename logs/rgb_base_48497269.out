@@ -1,0 +1,28 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 2
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/rgb_baseline.yaml
+[INFO] RGB train label counts: Counter({0: 259, 1: 180, 2: 100})
+[INFO] RGB class weights: tensor([0.1989, 0.2861, 0.5150], device='cuda:0')
+Epoch 01 | train_loss=0.6787, train_acc=0.6809 | val_loss=1.8374, val_acc=0.3349
+  [*] New best val_acc=0.3349, checkpoint saved.
+Epoch 02 | train_loss=0.3360, train_acc=0.8757 | val_loss=1.6963, val_acc=0.5535
+  [*] New best val_acc=0.5535, checkpoint saved.
+Epoch 03 | train_loss=0.2340, train_acc=0.9091 | val_loss=2.0205, val_acc=0.6791
+  [*] New best val_acc=0.6791, checkpoint saved.
+Epoch 04 | train_loss=0.1237, train_acc=0.9647 | val_loss=2.5821, val_acc=0.6233
+Epoch 05 | train_loss=0.1048, train_acc=0.9666 | val_loss=2.6153, val_acc=0.6000
+Epoch 06 | train_loss=0.0691, train_acc=0.9814 | val_loss=3.0226, val_acc=0.5488
+Epoch 07 | train_loss=0.0364, train_acc=0.9926 | val_loss=3.9243, val_acc=0.6279
+[INFO] Early stopping at epoch 7 (best epoch 3)
+[TEST] loss=0.8118, acc=0.6729
+[TEST] Confusion matrix:
+ [[25 26  1]
+ [ 0 28  8]
+ [ 0  0 19]]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/rgb_baseline/rgb_baseline_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/rgb_baseline/rgb_confusion_matrix.png

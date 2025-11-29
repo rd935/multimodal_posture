@@ -1,0 +1,30 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 0
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/depth_baseline.yaml
+[INFO] Train label counts: Counter({0: 259, 1: 180, 2: 100})
+Epoch 01 | train_loss=0.5582, train_acc=0.8052 | val_loss=0.3461, val_acc=0.8605
+  [*] New best val_acc=0.8605, checkpoint saved.
+Epoch 02 | train_loss=0.2606, train_acc=0.8998 | val_loss=1.1416, val_acc=0.5535
+Epoch 03 | train_loss=0.1664, train_acc=0.9443 | val_loss=0.7856, val_acc=0.7395
+Epoch 04 | train_loss=0.1025, train_acc=0.9629 | val_loss=0.2953, val_acc=0.9070
+  [*] New best val_acc=0.9070, checkpoint saved.
+Epoch 05 | train_loss=0.0856, train_acc=0.9740 | val_loss=0.3760, val_acc=0.8837
+Epoch 06 | train_loss=0.0763, train_acc=0.9759 | val_loss=0.1944, val_acc=0.9302
+  [*] New best val_acc=0.9302, checkpoint saved.
+Epoch 07 | train_loss=0.0714, train_acc=0.9814 | val_loss=0.3467, val_acc=0.8837
+Epoch 08 | train_loss=0.0379, train_acc=0.9926 | val_loss=0.2787, val_acc=0.8791
+Epoch 09 | train_loss=0.0382, train_acc=0.9926 | val_loss=0.3398, val_acc=0.9023
+Epoch 10 | train_loss=0.0571, train_acc=0.9722 | val_loss=0.2467, val_acc=0.9116
+[INFO] Early stopping at epoch 10 (best epoch 6)
+[TEST] loss=0.3143, acc=0.8598
+[TEST] Confusion matrix:
+ [[50  2  0]
+ [ 4 23  9]
+ [ 0  0 19]]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/depth_baseline/depth_baseline_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/depth_baseline/depth_confusion_matrix.png

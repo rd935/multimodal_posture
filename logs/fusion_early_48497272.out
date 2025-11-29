@@ -1,0 +1,36 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 1
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_early.yaml
+[INFO] RGB train label counts: Counter({0: 259, 1: 180, 2: 100})
+[INFO] RGB class weights: tensor([0.1989, 0.2861, 0.5150], device='cuda:0')
+Epoch 01 | train_loss=0.9439, train_acc=0.6494 | val_loss=0.8235, val_acc=0.8698
+  [*] New best val_acc=0.8698, checkpoint saved.
+Epoch 02 | train_loss=0.6359, train_acc=0.8534 | val_loss=0.5142, val_acc=0.8744
+  [*] New best val_acc=0.8744, checkpoint saved.
+Epoch 03 | train_loss=0.4070, train_acc=0.8961 | val_loss=0.3721, val_acc=0.9023
+  [*] New best val_acc=0.9023, checkpoint saved.
+Epoch 04 | train_loss=0.2621, train_acc=0.9276 | val_loss=0.4842, val_acc=0.8372
+Epoch 05 | train_loss=0.1923, train_acc=0.9406 | val_loss=0.6416, val_acc=0.7395
+Epoch 06 | train_loss=0.2318, train_acc=0.9202 | val_loss=0.1947, val_acc=0.9209
+  [*] New best val_acc=0.9209, checkpoint saved.
+Epoch 07 | train_loss=0.1022, train_acc=0.9759 | val_loss=0.2453, val_acc=0.9163
+Epoch 08 | train_loss=0.1023, train_acc=0.9666 | val_loss=0.2180, val_acc=0.9442
+  [*] New best val_acc=0.9442, checkpoint saved.
+Epoch 09 | train_loss=0.0930, train_acc=0.9777 | val_loss=0.1889, val_acc=0.9395
+Epoch 10 | train_loss=0.1089, train_acc=0.9629 | val_loss=0.1729, val_acc=0.9349
+Epoch 11 | train_loss=0.0915, train_acc=0.9759 | val_loss=0.2544, val_acc=0.9116
+Epoch 12 | train_loss=0.0730, train_acc=0.9777 | val_loss=0.3178, val_acc=0.8930
+Epoch 13 | train_loss=0.0617, train_acc=0.9870 | val_loss=0.2437, val_acc=0.9163
+[INFO] Early stopping at epoch 13 (best epoch 8)
+[TEST] loss=0.1222, acc=0.9533
+[TEST] Confusion matrix:
+ [[51  1  0]
+ [ 0 35  1]
+ [ 0  3 16]]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_early/fusion_early_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_early/fusion_early_confusion_matrix.png

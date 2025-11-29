@@ -10,7 +10,7 @@ train:
   patience: 20
   learning_rate: 1e-4
   batch_size: 8
-  seed: 42
+  seed: 2
   label_smoothing: 0.05
 
 loader:
