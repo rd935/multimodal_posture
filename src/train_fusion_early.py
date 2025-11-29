@@ -147,13 +147,27 @@ def main():
         num_workers=num_workers,
         rgb_frames=rgb_frames,
         resize=resize,
+        label_mode="stability3",   # <-- NEW
     )
 
-    # infer num_classes from train dataset
+    # -------------------- Classes + class weights --------
+    from collections import Counter
+
+    num_classes = 3
+    class_names = ["stable", "unstable", "falling"]
+
     train_ds = train_loader.dataset
-    labels = [int(row["label"]) for row in train_ds.items]
-    num_classes = len(set(labels))
-    class_names = list(range(num_classes))
+    label_counts = Counter(int(train_ds[i]["label"]) for i in range(len(train_ds)))
+    print("[INFO] RGB train label counts:", label_counts)
+
+    counts = torch.tensor(
+        [label_counts.get(i, 1) for i in range(num_classes)],
+        dtype=torch.float,
+        device=DEVICE,
+    )
+    weights = 1.0 / counts
+    weights = weights / weights.sum()
+    print("[INFO] RGB class weights:", weights)
 
     # -------------------- Model & Optimizer ---------------
     embed_dim = int(model_cfg.get("embed_dim", 256))
@@ -212,7 +226,7 @@ def main():
                 print(f"[INFO] Early stopping at epoch {epoch} (best epoch {best_epoch})")
                 break
 
-    # -------------------- Final test evaluation -----------    
+    # -------------------- Final test evaluation -----------
     best_ckpt = ckpt_dir / "fusion_early_best.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
     test_loss, test_acc, test_cm, test_preds, test_labels = evaluate(model, test_loader, criterion)

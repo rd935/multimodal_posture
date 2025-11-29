@@ -135,6 +135,7 @@ def main():
     results_dir.mkdir(parents=True, exist_ok=True)
 
     # -------------------- Data loaders --------------------
+    # IMPORTANT: use stability3 labels (0: stable, 1: unstable, 2: falling)
     train_loader, val_loader, test_loader = make_utd_mhad_loaders(
         str(train_csv),
         str(val_csv),
@@ -143,16 +144,34 @@ def main():
         num_workers=num_workers,
         rgb_frames=rgb_frames,
         resize=resize,
+        label_mode="stability3",
     )
 
-    train_ds = train_loader.dataset
-    labels = [int(row["label"]) for row in train_ds.items]
-    num_classes = len(set(labels))
-    class_names = list(range(num_classes))
+    # -------------------- Classes --------------------
+    # We now *define* the task as 3-way stability classification.
+    num_classes = 3
+    class_names = ["stable", "unstable", "falling"]
 
     # -------------------- Model & Optimizer ---------------
     model = DepthBaselineResNet18(num_classes=num_classes).to(DEVICE)
-    criterion = nn.CrossEntropyLoss()
+
+    # Optional: handle class imbalance with weights
+    # (can comment this whole block out if you don't want weighting)
+    from collections import Counter
+    train_ds = train_loader.dataset
+    label_counts = Counter(int(train_ds[i]["label"]) for i in range(len(train_ds)))
+    # Make sure all 3 labels appear
+    print("[INFO] Train label counts:", label_counts)
+
+    counts = torch.tensor([label_counts.get(i, 1) for i in range(num_classes)], dtype=torch.float)
+    weights = 1.0 / counts
+    weights = weights / weights.sum()  # normalize
+    weights = weights.to(DEVICE)
+
+    criterion = nn.CrossEntropyLoss(weight=weights)
+    # If you don't want weighting, just do:
+    # criterion = nn.CrossEntropyLoss()
+
     optimizer = Adam(model.parameters(), lr=lr)
 
     best_val_acc = 0.0

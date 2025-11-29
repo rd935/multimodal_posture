@@ -144,13 +144,27 @@ def main():
         num_workers=num_workers,
         rgb_frames=rgb_frames,
         resize=resize,
+        label_mode="stability3",   # <-- NEW: use 3-class stability labels
     )
 
-    # infer num_classes from train dataset
+    # -------------------- Classes + class weights --------
+    from collections import Counter
+
+    num_classes = 3
+    class_names = ["stable", "unstable", "falling"]
+
     train_ds = train_loader.dataset
-    labels = [int(row["label"]) for row in train_ds.items]
-    num_classes = len(set(labels))
-    class_names = list(range(num_classes))  # you can later map to action names if you want
+    label_counts = Counter(int(train_ds[i]["label"]) for i in range(len(train_ds)))
+    print("[INFO] RGB train label counts:", label_counts)
+
+    counts = torch.tensor(
+        [label_counts.get(i, 1) for i in range(num_classes)],
+        dtype=torch.float,
+        device=DEVICE,
+    )
+    weights = 1.0 / counts
+    weights = weights / weights.sum()
+    print("[INFO] RGB class weights:", weights)
 
     # -------------------- Model & Optimizer ---------------
     model = RGBBaselineResNet18(num_classes=num_classes).to(DEVICE)

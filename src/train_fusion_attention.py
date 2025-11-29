@@ -251,16 +251,32 @@ def main():
         num_workers=num_workers,
         rgb_frames=rgb_frames,
         resize=resize,
+        label_mode="stability3",   # <-- NEW
     )
 
-    print(f"[DEBUG] Dataset sizes: train={len(train_loader.dataset)}, "
-      f"val={len(val_loader.dataset)}, test={len(test_loader.dataset)}")
+    print(
+        f"[DEBUG] Dataset sizes: train={len(train_loader.dataset)}, "
+        f"val={len(val_loader.dataset)}, test={len(test_loader.dataset)}"
+    )
 
-    # infer num_classes from train dataset
+    # -------------------- Classes + class weights --------
+    from collections import Counter
+
+    num_classes = 3
+    class_names = ["stable", "unstable", "falling"]
+
     train_ds = train_loader.dataset
-    labels = [int(row["label"]) for row in train_ds.items]
-    num_classes = len(set(labels))
-    class_names = list(range(num_classes))
+    label_counts = Counter(int(train_ds[i]["label"]) for i in range(len(train_ds)))
+    print("[INFO] RGB train label counts:", label_counts)
+
+    counts = torch.tensor(
+        [label_counts.get(i, 1) for i in range(num_classes)],
+        dtype=torch.float,
+        device=DEVICE,
+    )
+    weights = 1.0 / counts
+    weights = weights / weights.sum()
+    print("[INFO] RGB class weights:", weights)
 
     # -------------------- Model & Optimizer ---------------
     embed_dim = int(model_cfg.get("embed_dim", 256))
@@ -280,7 +296,6 @@ def main():
         freeze_backbone=freeze_backbone,
     ).to(DEVICE)
 
-
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     optimizer = Adam(
@@ -288,7 +303,7 @@ def main():
         lr=lr,           # from YAML, e.g. 1e-4
         weight_decay=1e-4,
     )
-    
+
     best_val_acc = 0.0
     best_epoch = 0
     epochs_no_improve = 0
@@ -332,7 +347,7 @@ def main():
                 print(f"[INFO] Early stopping at epoch {epoch} (best epoch {best_epoch})")
                 break
 
-    # -------------------- Final test evaluation -----------    
+    # -------------------- Final test evaluation -----------
     best_ckpt = ckpt_dir / "fusion_attention_best.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
 
@@ -400,3 +415,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

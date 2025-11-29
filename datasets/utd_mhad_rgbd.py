@@ -9,6 +9,50 @@ from scipy.io import loadmat
 from pathlib import Path
 from torchvision import transforms
 
+# ------------------------------------------------------------------
+#  STABILITY MAPPING: ACTION (1..27) -> {0: stable, 1: unstable, 2: falling}
+# ------------------------------------------------------------------
+# !!! IMPORTANT !!!
+# Replace these lists with the actual mapping your project/TA expects.
+# Action IDs here are the original UTD-MHAD action numbers (1..27),
+# NOT the zero-based "label" field.
+#
+# Example ONLY — you MUST EDIT these:
+STABLE_ACTIONS = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 16, 18, 19]
+
+
+UNSTABLE_ACTIONS = [7, 12, 13, 14, 15, 17, 20, 21, 22]
+
+FALLING_ACTIONS = [23, 24, 25, 26, 27]
+
+
+STABILITY_MAP = {}
+for a in STABLE_ACTIONS:
+    STABILITY_MAP[a] = 0  # stable
+for a in UNSTABLE_ACTIONS:
+    STABILITY_MAP[a] = 1  # unstable
+for a in FALLING_ACTIONS:
+    STABILITY_MAP[a] = 2  # falling
+
+
+def action_to_stability(action: int) -> int:
+    """
+    Map UTD-MHAD action ID (1..27) to stability class:
+        0: stable
+        1: unstable
+        2: falling
+    """
+    if action not in STABILITY_MAP:
+        raise ValueError(
+            f"Action {action} not found in STABILITY_MAP. "
+            "Add it to STABLE_ACTIONS / UNSTABLE_ACTIONS / FALLING_ACTIONS."
+        )
+    return STABILITY_MAP[action]
+
+
+# ------------------------------------------------------------------
+#  Video / depth loading helpers
+# ------------------------------------------------------------------
 
 def load_video_opencv(path, max_frames=None):
     """
@@ -41,7 +85,6 @@ def load_depth_mat(path):
     """
     data = loadmat(path)
     # try to guess the depth key
-    # print(data.keys()) if unsure
     for key in ["depth", "Depth", "d", "frame"]:
         if key in data:
             arr = data[key]
@@ -59,6 +102,7 @@ def load_depth_mat(path):
     arr = np.array(arr, dtype=np.float32)
     return arr
 
+
 def resample_sequence(arr, target_len):
     """
     Resample a temporal sequence arr (T, H, W) to length target_len.
@@ -72,17 +116,25 @@ def resample_sequence(arr, target_len):
     return arr[idxs]
 
 
+# ------------------------------------------------------------------
+#  Dataset
+# ------------------------------------------------------------------
+
 class UTDMHADRGBD(Dataset):
     def __init__(
         self,
         index_csv,
         rgb_frames=16,
         resize=(224, 224),
+        label_mode="stability3",
     ):
         """
         index_csv: path to the CSV we created
         rgb_frames: how many frames to sample from the RGB video
         resize: (H, W) to resize frames
+        label_mode:
+            "stability3" -> 3-class stable/unstable/falling labels (0,1,2)
+            "action27"   -> original 27-class action labels (0..26)
         """
         self.items = []
         with open(index_csv, "r") as f:
@@ -92,6 +144,7 @@ class UTDMHADRGBD(Dataset):
 
         self.rgb_frames = rgb_frames
         self.resize = resize
+        self.label_mode = label_mode
 
         # transforms for RGB frames
         self.rgb_transform = transforms.Compose([
@@ -121,7 +174,18 @@ class UTDMHADRGBD(Dataset):
         row = self.items[idx]
         rgb_path = Path(row["rgb_path"])
         depth_path = Path(row["depth_path"])
-        label = int(row["label"])
+
+        # Original 27-class label (0..26) and 1-based action ID from CSV
+        raw_label_27 = int(row["label"])
+        action_id = int(row["action"])  # should be 1..27
+
+        # Decide which label to output
+        if self.label_mode == "stability3":
+            label = action_to_stability(action_id)  # -> 0/1/2
+        elif self.label_mode == "action27":
+            label = raw_label_27
+        else:
+            raise ValueError(f"Unknown label_mode: {self.label_mode}")
 
         # ---------- RGB ----------
         rgb_frames_np = load_video_opencv(rgb_path)
@@ -155,7 +219,7 @@ class UTDMHADRGBD(Dataset):
             else:
                 raise ValueError(f"Unexpected depth shape {depth_arr.shape} in {depth_path}")
 
-            # --- simple temporal resampling to match rgb length ---
+            # simple temporal resampling to match rgb length
             target_T = rgb_tensor.shape[0]
             depth_arr = resample_sequence(depth_arr, target_T)  # (T, H, W)
 
@@ -175,7 +239,7 @@ class UTDMHADRGBD(Dataset):
             "depth": depth_tensor,       # (T, 1, H, W)
             "label": torch.tensor(label, dtype=torch.long),
             "subject": int(row["subject"]),
-            "action": int(row["action"]),
+            "action": action_id,
             "trial": int(row["trial"]),
         }
         return sample

@@ -415,6 +415,7 @@ def main():
         num_workers=num_workers,
         rgb_frames=rgb_frames,
         resize=resize,
+        label_mode="stability3",   # <-- NEW
     )
 
     print(
@@ -422,11 +423,24 @@ def main():
         f"val={len(val_loader.dataset)}, test={len(test_loader.dataset)}"
     )
 
-    # infer num_classes from train dataset
+    # -------------------- Classes + class weights --------
+    from collections import Counter
+
+    num_classes = 3
+    class_names = ["stable", "unstable", "falling"]
+
     train_ds = train_loader.dataset
-    labels = [int(row["label"]) for row in train_ds.items]
-    num_classes = len(set(labels))
-    class_names = list(range(num_classes))
+    label_counts = Counter(int(train_ds[i]["label"]) for i in range(len(train_ds)))
+    print("[INFO] RGB train label counts:", label_counts)
+
+    counts = torch.tensor(
+        [label_counts.get(i, 1) for i in range(num_classes)],
+        dtype=torch.float,
+        device=DEVICE,
+    )
+    weights = 1.0 / counts
+    weights = weights / weights.sum()
+    print("[INFO] RGB class weights:", weights)
 
     # -------------------- Model & Optimizer ---------------
     embed_dim = int(model_cfg.get("embed_dim", 256))
@@ -449,7 +463,7 @@ def main():
 
     label_smoothing = float(train_cfg.get("label_smoothing", 0.05))
 
-    # Note: base_criterion returns per-sample loss for potential weighting
+    # base_criterion returns per-sample loss for potential weighting
     base_criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing, reduction="none")
     eval_criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
@@ -535,7 +549,7 @@ def main():
     )
 
     print(f"[INFO] Fine-tune best val_acc={ft_best_val:.4f}")
-    
+
     (
         test_loss,
         test_acc,
