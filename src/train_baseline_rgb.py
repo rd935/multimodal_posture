@@ -168,7 +168,7 @@ def main():
 
     # -------------------- Model & Optimizer ---------------
     model = RGBBaselineResNet18(num_classes=num_classes).to(DEVICE)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = Adam(model.parameters(), lr=lr)
 
     best_val_acc = 0.0

@@ -61,7 +61,7 @@ def train_one_epoch(model, loader, optimizer, criterion):
         attn_entropy = -(attn_probs * torch.log(attn_probs + 1e-8)).sum(dim=-1).mean()
 
         # small weight to push attention away from uniform 0.5/0.5
-        loss = loss_ce + 0.01 * attn_entropy
+        loss = loss_ce + 0.001 * attn_entropy
         
         loss.backward()
         optimizer.step()
@@ -296,7 +296,7 @@ def main():
         freeze_backbone=freeze_backbone,
     ).to(DEVICE)
 
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=0.1)
 
     optimizer = Adam(
         model.parameters(),

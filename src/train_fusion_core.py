@@ -43,88 +43,189 @@ def contrastive_loss_rgb_depth(
     z_rgb: torch.Tensor,
     z_depth: torch.Tensor,
     temperature: float = 0.1,
-) -> torch.Tensor:
+):
     """
-    Symmetric InfoNCE-style contrastive loss between RGB and Depth embeddings.
-
-    z_rgb, z_depth: (B, D)
+    Simple InfoNCE-style contrastive loss between RGB and Depth embeddings
+    in a batch. Encourages matching pairs (same sample) and repels others.
     """
-    z_rgb = F.normalize(z_rgb, dim=-1)
-    z_depth = F.normalize(z_depth, dim=-1)
+    # z_rgb, z_depth: (B, D)
+    z_rgb = F.normalize(z_rgb, p=2, dim=-1)
+    z_depth = F.normalize(z_depth, p=2, dim=-1)
 
-    logits = (z_rgb @ z_depth.t()) / temperature  # (B, B)
-    labels = torch.arange(z_rgb.size(0), device=z_rgb.device)
+    logits = torch.matmul(z_rgb, z_depth.t()) / temperature
+    labels = torch.arange(logits.size(0), device=logits.device)
 
     loss_rgb_to_depth = F.cross_entropy(logits, labels)
     loss_depth_to_rgb = F.cross_entropy(logits.t(), labels)
     return 0.5 * (loss_rgb_to_depth + loss_depth_to_rgb)
 
 
+def attention_entropy_loss(attn_logits: torch.Tensor):
+    """
+    Encourage non-uniform attention (i.e., avoid 0.5/0.5). A lower entropy
+    is desired, so we penalize the entropy.
+    """
+    probs = F.softmax(attn_logits, dim=-1)
+    entropy = -(probs * torch.log(probs + 1e-8)).sum(dim=-1).mean()
+    return entropy
+
+
+# ---------------------------------------------------------
+# Training & evaluation loops
+# ---------------------------------------------------------
+
 def train_one_epoch_core(
     model,
-    loader,
+    train_loader,
     optimizer,
-    base_criterion,  # nn.CrossEntropyLoss with reduction='none'
+    base_criterion,
     temperature: float,
     w_contrastive: float,
     w_attn_entropy: float,
 ):
+    """
+    Train one epoch of the core fusion model with:
+      - Classification loss
+      - RGB-depth contrastive loss
+      - Small entropy penalty on attention
+    """
     model.train()
-    total_loss = total_cls_loss = total_contrastive_loss = 0.0
-    total_correct = total_samples = 0
+    total_loss = 0.0
+    total_cls = 0.0
+    total_contrast = 0.0
+    total_correct = 0
+    total_samples = 0
 
-    for batch in loader:
-        rgb = batch["rgb"].to(DEVICE)
-        depth = batch["depth"].to(DEVICE)
-        labels = batch["label"].to(DEVICE)
+    for batch in train_loader:
+        rgb = batch["rgb"].to(DEVICE)        # (B, T, 3, H, W)
+        depth = batch["depth"].to(DEVICE)    # (B, T, 1, H, W)
+        labels = batch["label"].to(DEVICE)   # (B,)
 
         optimizer.zero_grad()
 
-        logits, extras = model(
+        logits, z_rgb, z_depth, extras = model(
             rgb,
             depth,
             return_embeddings=True,
             return_attention=True,
-            return_uncertainty=True,   # keep heads training, but don’t use them yet
+            return_uncertainty=False,
         )
 
-        ce_per_sample = base_criterion(logits, labels)  # (B,)
-        cls_loss = ce_per_sample.mean()                 # 🔴 NO uncertainty weighting here
+        cls_loss_per_sample = base_criterion(logits, labels)   # (B,)
+        cls_loss = cls_loss_per_sample.mean()
 
-        modality_attention = extras["modality_attention"]  # (B, 2)
+        loss = cls_loss
 
-        # contrastive loss
-        z_rgb = extras["z_rgb"]
-        z_depth = extras["z_depth"]
-        c_loss = contrastive_loss_rgb_depth(z_rgb, z_depth, temperature=temperature)
+        if w_contrastive > 0:
+            c_loss = contrastive_loss_rgb_depth(z_rgb, z_depth, temperature=temperature)
+            loss = loss + w_contrastive * c_loss
+        else:
+            c_loss = torch.tensor(0.0, device=DEVICE)
 
-        # attention entropy
-        attn_entropy = -(modality_attention * torch.log(modality_attention + 1e-8)).sum(dim=-1).mean()
-
-        loss = cls_loss + w_contrastive * c_loss + w_attn_entropy * attn_entropy
+        if w_attn_entropy > 0:
+            attn_logits = extras["modality_attention_logits"]  # (B, 2)
+            ent = attention_entropy_loss(attn_logits)
+            loss = loss + w_attn_entropy * ent
+        else:
+            ent = torch.tensor(0.0, device=DEVICE)
 
         loss.backward()
         optimizer.step()
 
         preds = logits.argmax(dim=1)
         total_loss += loss.item() * labels.size(0)
-        total_cls_loss += cls_loss.item() * labels.size(0)
-        total_contrastive_loss += c_loss.item() * labels.size(0)
+        total_cls += cls_loss.item() * labels.size(0)
+        total_contrast += c_loss.item() * labels.size(0)
         total_correct += (preds == labels).sum().item()
         total_samples += labels.size(0)
 
-    return (
-        total_loss / total_samples,
-        total_cls_loss / total_samples,
-        total_contrastive_loss / total_samples,
-        total_correct / total_samples,
-    )
+    epoch_loss = total_loss / total_samples
+    epoch_cls = total_cls / total_samples
+    epoch_contrast = total_contrast / total_samples
+    epoch_acc = total_correct / total_samples
+    return epoch_loss, epoch_cls, epoch_contrast, epoch_acc
+
+
+def evaluate_with_attention_core(
+    model,
+    data_loader,
+    criterion,
+    num_classes: int,
+):
+    """
+    Evaluate the core fusion model, also returning confusion matrix and
+    mean attention per class.
+    """
+    model.eval()
+    total_loss = 0.0
+    total_correct = 0
+    total_samples = 0
+
+    all_preds = []
+    all_labels = []
+
+    all_mod_att = []
+    all_labels_for_att = []
+
+    with torch.no_grad():
+        for batch in data_loader:
+            rgb = batch["rgb"].to(DEVICE)
+            depth = batch["depth"].to(DEVICE)
+            labels = batch["label"].to(DEVICE)
+
+            logits, _, _, extras = model(
+                rgb,
+                depth,
+                return_embeddings=True,
+                return_attention=True,
+                return_uncertainty=False,
+            )
+
+            loss = criterion(logits, labels)
+            total_loss += loss.item() * labels.size(0)
+
+            preds = logits.argmax(dim=1)
+            total_correct += (preds == labels).sum().item()
+            total_samples += labels.size(0)
+
+            all_preds.append(preds.cpu().numpy())
+            all_labels.append(labels.cpu().numpy())
+
+            modality_attention = extras["modality_attention"].detach().cpu().numpy()
+            labels_np = labels.cpu().numpy()
+
+            all_mod_att.append(modality_attention)
+            all_labels_for_att.append(labels_np)
+
+    avg_loss = total_loss / total_samples
+    avg_acc = total_correct / total_samples
+
+    all_preds = np.concatenate(all_preds, axis=0)
+    all_labels = np.concatenate(all_labels, axis=0)
+    cm = confusion_matrix(all_labels, all_preds, labels=list(range(num_classes)))
+
+    all_mod_att = np.concatenate(all_mod_att, axis=0)         # (N, 2)
+    all_labels_for_att = np.concatenate(all_labels_for_att)   # (N,)
+
+    mean_modality_attention = all_mod_att.mean(axis=0)
+
+    mean_att_per_class = np.zeros((num_classes, 2), dtype=np.float32)
+    for c in range(num_classes):
+        idxs = (all_labels_for_att == c)
+        if idxs.sum() > 0:
+            mean_att_per_class[c] = all_mod_att[idxs].mean(axis=0)
+        else:
+            mean_att_per_class[c] = np.array([np.nan, np.nan])
+
+    return avg_loss, avg_acc, cm, all_preds, all_labels, mean_modality_attention, mean_att_per_class
+
 
 def finetune_uncertainty(
     model,
     train_loader,
     val_loader,
     base_criterion,
+    eval_criterion,
     contrastive_temperature: float,
     w_uncertainty_reg: float,
     num_classes: int,
@@ -136,27 +237,32 @@ def finetune_uncertainty(
     Stage-2: Fine-tune ONLY classifier + uncertainty heads with gentle
     uncertainty-weighted CE, keeping backbones & fusion mostly fixed.
     """
-    # 1) Freeze everything
-    for p in model.parameters():
-        p.requires_grad = False
+    print("[INFO] Starting uncertainty fine-tuning stage...")
 
-    # 2) Unfreeze classifier + var heads
-    trainable = []
-    for name, p in model.named_parameters():
-        if any(k in name for k in ["classifier", "rgb_var_head", "depth_var_head"]):
-            p.requires_grad = True
-            trainable.append(p)
+    for name, param in model.named_parameters():
+        param.requires_grad = False
 
-    optimizer = Adam(trainable, lr=finetune_lr, weight_decay=0.0)
+    for name, param in model.named_parameters():
+        if "core_classifier" in name or "uncertainty_head" in name:
+            param.requires_grad = True
+
+    optimizer = Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=finetune_lr,
+        weight_decay=1e-4,
+    )
 
     best_val_acc = 0.0
-    best_state = None
+    best_epoch = 0
     epochs_no_improve = 0
 
     for epoch in range(1, finetune_epochs + 1):
         model.train()
-        total_loss = total_cls = total_unc = 0.0
-        total_correct = total_samples = 0
+        total_loss = 0.0
+        total_cls = 0.0
+        total_unc = 0.0
+        total_correct = 0
+        total_samples = 0
 
         for batch in train_loader:
             rgb = batch["rgb"].to(DEVICE)
@@ -165,33 +271,31 @@ def finetune_uncertainty(
 
             optimizer.zero_grad()
 
-            logits, extras = model(
+            logits, _, _, extras = model(
                 rgb,
                 depth,
                 return_embeddings=True,
-                return_attention=True,
+                return_attention=False,
                 return_uncertainty=True,
             )
 
-            ce_per_sample = base_criterion(logits, labels)  # (B,)
+            ce_per_sample = base_criterion(logits, labels)
 
-            # attention & uncertainty
-            modality_attention = extras["modality_attention"]  # (B, 2)
-            alpha_rgb = modality_attention[:, 0]
-            alpha_depth = modality_attention[:, 1]
-            log_var_rgb = extras["log_var_rgb"].clamp(-3.0, 3.0)
-            log_var_depth = extras["log_var_depth"].clamp(-3.0, 3.0)
+            log_var_rgb = extras["log_var_rgb"]
+            log_var_depth = extras["log_var_depth"]
 
-            # reliability in [0,1]
-            rel_rgb = torch.sigmoid(-log_var_rgb)
-            rel_depth = torch.sigmoid(-log_var_depth)
-            rel_eff = alpha_rgb * rel_rgb + alpha_depth * rel_depth  # (B,)
-            rel_eff = rel_eff / (rel_eff.mean().detach() + 1e-6)     # mean ~ 1
+            var_rgb = log_var_rgb.exp()
+            var_depth = log_var_depth.exp()
+
+            inv_var_rgb = torch.exp(-log_var_rgb)
+            inv_var_depth = torch.exp(-log_var_depth)
+
+            rel_eff = (inv_var_rgb + inv_var_depth) / 2.0
+            rel_eff = rel_eff / (rel_eff.mean().detach() + 1e-6)
 
             cls_loss = (rel_eff * ce_per_sample).mean()
 
-            # mild variance regularizer
-            unc_reg = 0.5 * (log_var_rgb.exp() + log_var_depth.exp()).mean()
+            unc_reg = 0.5 * (var_rgb + var_depth).mean()
 
             loss = cls_loss + w_uncertainty_reg * unc_reg
 
@@ -212,10 +316,9 @@ def finetune_uncertainty(
         val_loss, val_acc, *_ = evaluate_with_attention_core(
             model,
             val_loader,
-            nn.CrossEntropyLoss(label_smoothing=0.1),
+            eval_criterion,
             num_classes,
         )
-
 
         print(
             f"[FT] Epoch {epoch:02d} | train_loss={train_loss:.4f}, "
@@ -224,138 +327,97 @@ def finetune_uncertainty(
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            best_epoch = epoch
             epochs_no_improve = 0
+            torch.save(model.state_dict(), PROJECT_ROOT / "checkpoints" / "fusion_core" / "fusion_core_best_ft.pt")
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
-                print(f"[FT] Early stopping fine-tune at epoch {epoch}")
+                print(f"[FT] Early stopping fine-tune at epoch {epoch} (best epoch {best_epoch})")
                 break
 
-    if best_state is not None:
-        model.load_state_dict(best_state)
+    best_path = PROJECT_ROOT / "checkpoints" / "fusion_core" / "fusion_core_best_ft.pt"
+    if best_path.exists():
+        model.load_state_dict(torch.load(best_path, map_location=DEVICE))
+    else:
+        print("[FT] Warning: fine-tune best checkpoint not found; using last epoch weights.")
 
     return best_val_acc
 
 
-@torch.no_grad()
-def evaluate_with_attention_core(model, loader, criterion, num_classes):
-    """
-    Evaluation for the core model – same metrics as attention baseline:
-      - loss, acc, confusion matrix, preds, labels
-      - mean modality attention overall and per class
-    """
-    model.eval()
-    total_loss = 0.0
-    total_correct = 0
-    total_samples = 0
-    all_preds = []
-    all_labels = []
-
-    modality_att_sum_overall = np.zeros(2, dtype=np.float64)
-    overall_count = 0
-
-    modality_att_sum_per_class = np.zeros((num_classes, 2), dtype=np.float64)
-    class_counts = np.zeros(num_classes, dtype=np.int64)
-
-    for batch in loader:
-        rgb = batch["rgb"].to(DEVICE)
-        depth = batch["depth"].to(DEVICE)
-        labels = batch["label"].to(DEVICE)
-
-        logits, extras = model(
-            rgb,
-            depth,
-            return_embeddings=False,
-            return_attention=True,
-            return_uncertainty=False,
-        )
-
-        loss = criterion(logits, labels)
-        total_loss += loss.item() * labels.size(0)
-
-        preds = logits.argmax(dim=1)
-        total_correct += (preds == labels).sum().item()
-        total_samples += labels.size(0)
-
-        all_preds.append(preds.cpu().numpy())
-        all_labels.append(labels.cpu().numpy())
-
-        modality_attention = extras["modality_attention"].detach().cpu().numpy()
-        labels_np = labels.cpu().numpy()
-
-        modality_att_sum_overall += modality_attention.sum(axis=0)
-        overall_count += modality_attention.shape[0]
-
-        for att_vec, lbl in zip(modality_attention, labels_np):
-            modality_att_sum_per_class[lbl] += att_vec
-            class_counts[lbl] += 1
-
-    avg_loss = total_loss / total_samples
-    avg_acc = total_correct / total_samples
-    all_preds = np.concatenate(all_preds)
-    all_labels = np.concatenate(all_labels)
-    cm = confusion_matrix(all_labels, all_preds)
-
-    if overall_count > 0:
-        mean_modality_attention = modality_att_sum_overall / overall_count
-    else:
-        mean_modality_attention = np.zeros(2, dtype=np.float64)
-
-    mean_att_per_class = np.zeros_like(modality_att_sum_per_class)
-    for c in range(num_classes):
-        if class_counts[c] > 0:
-            mean_att_per_class[c] = modality_att_sum_per_class[c] / class_counts[c]
-        else:
-            mean_att_per_class[c] = np.array([np.nan, np.nan])
-
-    return (
-        avg_loss,
-        avg_acc,
-        cm,
-        all_preds,
-        all_labels,
-        mean_modality_attention,
-        mean_att_per_class,
-    )
-
+# ---------------------------------------------------------
+# Utility for plotting confusion matrix & attention
+# ---------------------------------------------------------
 
 def plot_confusion_matrix(cm, class_names, out_path, title="Confusion Matrix"):
-    plt.figure(figsize=(8, 8))
-    plt.imshow(cm, interpolation="nearest")
-    plt.title(title)
-    plt.colorbar()
-    tick_marks = np.arange(len(class_names))
-    plt.xticks(tick_marks, class_names, rotation=90)
-    plt.yticks(tick_marks, class_names)
-    plt.ylabel("True label")
-    plt.xlabel("Predicted label")
-    plt.tight_layout()
+    fig, ax = plt.subplots(figsize=(6, 6))
+    im = ax.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+    ax.figure.colorbar(im, ax=ax)
+
+    ax.set(
+        xticks=np.arange(cm.shape[1]),
+        yticks=np.arange(cm.shape[0]),
+        xticklabels=class_names,
+        yticklabels=class_names,
+        ylabel="True label",
+        xlabel="Predicted label",
+        title=title,
+    )
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+    thresh = cm.max() / 2.0
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(
+                j,
+                i,
+                format(cm[i, j], "d"),
+                ha="center",
+                va="center",
+                color="white" if cm[i, j] > thresh else "black",
+            )
+
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path)
-    plt.close()
+    plt.close(fig)
 
 
 def plot_attention_heatmap(
-    mean_att_per_class,
+    attention_per_class,
     class_names,
     out_path,
     title="Mean Modality Attention per Class",
     modality_labels=("RGB", "Depth"),
 ):
-    num_classes = len(class_names)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(attention_per_class, cmap=plt.cm.Oranges, aspect="auto")
 
-    plt.figure(figsize=(8, 6))
-    plt.imshow(mean_att_per_class, interpolation="nearest", aspect="auto")
-    plt.title(title)
-    plt.colorbar()
-    plt.xticks(np.arange(2), modality_labels)
-    plt.yticks(np.arange(num_classes), class_names)
-    plt.xlabel("Modality")
-    plt.ylabel("Class")
-    plt.tight_layout()
+    ax.set_xticks(np.arange(len(modality_labels)))
+    ax.set_yticks(np.arange(len(class_names)))
+    ax.set_xticklabels(modality_labels)
+    ax.set_yticklabels(class_names)
+    ax.set_xlabel("Modality")
+    ax.set_ylabel("Class")
+    ax.set_title(title)
+
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+    for i in range(attention_per_class.shape[0]):
+        for j in range(attention_per_class.shape[1]):
+            val = attention_per_class[i, j]
+            if not np.isnan(val):
+                ax.text(j, i, f"{val:.2f}", ha="center", va="center", color="black")
+
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path)
-    plt.close()
+    plt.close(fig)
 
+
+# ---------------------------------------------------------
+# Main
+# ---------------------------------------------------------
 
 def main():
     # -----------------------------------------------------
@@ -381,7 +443,6 @@ def main():
     model_cfg = cfg.get("model", {})
     loss_cfg = cfg.get("loss", {})
 
-    # -------------------- Set seed from config --------------------------
     seed = int(train_cfg.get("seed", 42))
     set_seed(seed)
     print(f"[INFO] Using seed: {seed}")
@@ -400,7 +461,6 @@ def main():
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    # Loss hyperparameters
     contrastive_temperature = float(loss_cfg.get("contrastive_temperature", 0.1))
     w_contrastive = float(loss_cfg.get("contrastive_weight", 0.1))
     w_uncertainty_reg = float(loss_cfg.get("uncertainty_reg_weight", 0.01))
@@ -415,7 +475,7 @@ def main():
         num_workers=num_workers,
         rgb_frames=rgb_frames,
         resize=resize,
-        label_mode="stability3",   # <-- NEW
+        label_mode="stability3",
     )
 
     print(
@@ -431,7 +491,7 @@ def main():
 
     train_ds = train_loader.dataset
     label_counts = Counter(int(train_ds[i]["label"]) for i in range(len(train_ds)))
-    print("[INFO] RGB train label counts:", label_counts)
+    print("[INFO] Core fusion train label counts:", label_counts)
 
     counts = torch.tensor(
         [label_counts.get(i, 1) for i in range(num_classes)],
@@ -440,7 +500,7 @@ def main():
     )
     weights = 1.0 / counts
     weights = weights / weights.sum()
-    print("[INFO] RGB class weights:", weights)
+    print("[INFO] Core fusion class weights:", weights)
 
     # -------------------- Model & Optimizer ---------------
     embed_dim = int(model_cfg.get("embed_dim", 256))
@@ -464,8 +524,15 @@ def main():
     label_smoothing = float(train_cfg.get("label_smoothing", 0.05))
 
     # base_criterion returns per-sample loss for potential weighting
-    base_criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing, reduction="none")
-    eval_criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
+    base_criterion = nn.CrossEntropyLoss(
+        weight=weights,
+        label_smoothing=label_smoothing,
+        reduction="none",
+    )
+    eval_criterion = nn.CrossEntropyLoss(
+        weight=weights,
+        label_smoothing=label_smoothing,
+    )
 
     optimizer = Adam(
         model.parameters(),
@@ -517,7 +584,6 @@ def main():
             f"val_loss={val_loss:.4f}, val_acc={val_acc:.4f}"
         )
 
-        # checkpoint + early stopping
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             best_epoch = epoch
@@ -531,6 +597,7 @@ def main():
                 break
 
     # -------------------- Final test evaluation -----------
+
     best_ckpt = ckpt_dir / "fusion_core_best.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
 
@@ -540,6 +607,7 @@ def main():
         train_loader,
         val_loader,
         base_criterion,
+        eval_criterion,
         contrastive_temperature,
         w_uncertainty_reg=w_uncertainty_reg,
         num_classes=num_classes,
@@ -564,7 +632,6 @@ def main():
     print("[TEST] Confusion matrix:\n", test_cm)
     print("[TEST] Mean modality attention (overall) [RGB, Depth]:", mean_modality_attention)
 
-    # -------------------- Save JSON results ---------------
     results = {
         "modality": "rgb+depth",
         "fusion_type": "core_fusion",
@@ -596,7 +663,6 @@ def main():
         json.dump(results, f, indent=2)
     print(f"[INFO] Saved JSON results to {json_path}")
 
-    # -------------------- Save confusion matrix heatmap ---
     cm_path = results_dir / "fusion_core_confusion_matrix.png"
     plot_confusion_matrix(
         test_cm,
@@ -606,7 +672,6 @@ def main():
     )
     print(f"[INFO] Saved confusion matrix heatmap to {cm_path}")
 
-    # -------------------- Save attention heatmap ----------
     attn_heatmap_path = results_dir / "fusion_core_heatmap.png"
     plot_attention_heatmap(
         mean_att_per_class,
