@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Adam
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score
 import matplotlib.pyplot as plt
 import random
 
@@ -614,7 +614,10 @@ def main():
         mean_att_per_class,
     ) = evaluate_with_attention_core(model, test_loader, eval_criterion, num_classes)
 
-    print(f"[TEST] loss={test_loss:.4f}, acc={test_acc:.4f}")
+    # ---- F1 score (macro) ----
+    test_f1_macro = f1_score(test_labels, test_preds, average="macro")
+
+    print(f"[TEST] loss={test_loss:.4f}, acc={test_acc:.4f}, macro_F1={test_f1_macro:.4f}")
     print("[TEST] Confusion matrix:\n", test_cm)
     print("[TEST] Mean modality attention (overall) [RGB, Depth]:", mean_modality_attention)
 
@@ -632,6 +635,7 @@ def main():
         "test": {
             "loss": float(test_loss),
             "acc": float(test_acc),
+            "f1_macro": float(test_f1_macro),
             "confusion_matrix": test_cm.tolist(),
             "mean_modality_attention": mean_modality_attention.tolist(),
             "mean_modality_attention_per_class": mean_att_per_class.tolist(),

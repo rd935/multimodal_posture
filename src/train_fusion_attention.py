@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Adam
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score
 import matplotlib.pyplot as plt
 import random
 
@@ -165,43 +165,70 @@ def evaluate_with_attention(model, loader, criterion, num_classes):
 
 
 def plot_confusion_matrix(cm, class_names, out_path, title="Confusion Matrix"):
-    plt.figure(figsize=(8, 8))
-    plt.imshow(cm, interpolation="nearest")
-    plt.title(title)
-    plt.colorbar()
-    tick_marks = np.arange(len(class_names))
-    plt.xticks(tick_marks, class_names, rotation=90)
-    plt.yticks(tick_marks, class_names)
-    plt.ylabel("True label")
-    plt.xlabel("Predicted label")
-    plt.tight_layout()
+    fig, ax = plt.subplots(figsize=(6, 6))
+    im = ax.imshow(cm, interpolation="nearest", cmap=plt.cm.Blues)
+    ax.figure.colorbar(im, ax=ax)
+
+    ax.set(
+        xticks=np.arange(cm.shape[1]),
+        yticks=np.arange(cm.shape[0]),
+        xticklabels=class_names,
+        yticklabels=class_names,
+        ylabel="True label",
+        xlabel="Predicted label",
+        title=title,
+    )
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+    thresh = cm.max() / 2.0
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(
+                j,
+                i,
+                format(cm[i, j], "d"),
+                ha="center",
+                va="center",
+                color="white" if cm[i, j] > thresh else "black",
+            )
+
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path)
-    plt.close()
+    plt.close(fig)
+
 
 
 def plot_attention_heatmap(
-    mean_att_per_class,
+    attention_per_class,
     class_names,
     out_path,
     title="Mean Modality Attention per Class",
     modality_labels=("RGB", "Depth"),
 ):
-    """
-    mean_att_per_class: (num_classes, 2) array with [rgb_weight, depth_weight].
-    """
-    num_classes = len(class_names)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    im = ax.imshow(attention_per_class, cmap=plt.cm.Oranges, aspect="auto")
 
-    plt.figure(figsize=(8, 6))
-    plt.imshow(mean_att_per_class, interpolation="nearest", aspect="auto")
-    plt.title(title)
-    plt.colorbar()
-    plt.xticks(np.arange(2), modality_labels)
-    plt.yticks(np.arange(num_classes), class_names)
-    plt.xlabel("Modality")
-    plt.ylabel("Class")
-    plt.tight_layout()
+    ax.set_xticks(np.arange(len(modality_labels)))
+    ax.set_yticks(np.arange(len(class_names)))
+    ax.set_xticklabels(modality_labels)
+    ax.set_yticklabels(class_names)
+    ax.set_xlabel("Modality")
+    ax.set_ylabel("Class")
+    ax.set_title(title)
+
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+    for i in range(attention_per_class.shape[0]):
+        for j in range(attention_per_class.shape[1]):
+            val = attention_per_class[i, j]
+            if not np.isnan(val):
+                ax.text(j, i, f"{val:.2f}", ha="center", va="center", color="black")
+
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path)
-    plt.close()
+    plt.close(fig)
 
 
 def main():
@@ -361,7 +388,10 @@ def main():
         mean_att_per_class,
     ) = evaluate_with_attention(model, test_loader, criterion, num_classes)
 
-    print(f"[TEST] loss={test_loss:.4f}, acc={test_acc:.4f}")
+    # ---- F1 score (macro) ----
+    test_f1_macro = f1_score(test_labels, test_preds, average="macro")
+
+    print(f"[TEST] loss={test_loss:.4f}, acc={test_acc:.4f}, macro_F1={test_f1_macro:.4f}")
     print("[TEST] Confusion matrix:\n", test_cm)
     print("[TEST] Mean modality attention (overall) [RGB, Depth]:", mean_modality_attention)
 
@@ -380,6 +410,7 @@ def main():
         "test": {
             "loss": float(test_loss),
             "acc": float(test_acc),
+            "f1_macro": float(test_f1_macro),
             "confusion_matrix": test_cm.tolist(),
             "mean_modality_attention": mean_modality_attention.tolist(),
             "mean_modality_attention_per_class": mean_att_per_class.tolist(),
