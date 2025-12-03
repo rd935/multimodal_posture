@@ -614,14 +614,7 @@ def main():
 
     best_ckpt_stage2 = ckpt_dir / "fusion_core_best_ft.pt"
 
-    # Decide which model to use for the "main" test accuracy
-    delta = 0.005  # 0.5% tolerance
-    if best_val_acc_stage2 + delta >= best_val_acc_stage1 and best_ckpt_stage2.exists():
-        print("[INFO] Using Stage-2 (uncertainty) weights for main test metrics.")
-        model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
-    else:
-        print("[INFO] Stage-2 did not improve val_acc; reverting to Stage-1 weights for main test metrics.")
-        model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
+    model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
 
 
     (
