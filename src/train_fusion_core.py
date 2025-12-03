@@ -597,9 +597,9 @@ def main():
         contrastive_temperature,
         w_uncertainty_reg=w_uncertainty_reg,
         num_classes=num_classes,
-        finetune_epochs=15,
+        finetune_epochs=8,
         finetune_lr=5e-5,
-        patience=5,
+        patience=3,
     )
 
     print(f"[INFO] Fine-tune best val_acc={ft_best_val:.4f}")

@@ -371,7 +371,7 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
         self.core_classifier = nn.Sequential(
             nn.Linear(2 * embed_dim, fusion_hidden_dim),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5),
+            nn.Dropout(p=0.3),
             nn.Linear(fusion_hidden_dim, num_classes),
         )
 
