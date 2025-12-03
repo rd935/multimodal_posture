@@ -198,7 +198,7 @@ def main():
     weights = weights / weights.sum()  # normalize
     weights = weights.to(DEVICE)
 
-    criterion = nn.CrossEntropyLoss(weight=weights)
+    criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=0.05)
     # If you don't want weighting, just do:
     # criterion = nn.CrossEntropyLoss()
 
