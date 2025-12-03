@@ -8,7 +8,7 @@ data:
 train:
   epochs: 30
   patience: 7
-  learning_rate: 1e-4
+  learning_rate: 5e-4
   batch_size: 8
 
 loader:
@@ -16,7 +16,7 @@ loader:
 
 model:
   embed_dim: 256
-  fusion_hidden_dim: 512
+  fusion_hidden_dim: 768
   attn_hidden_dim: 256
   pretrained: true
   freeze_backbone: false

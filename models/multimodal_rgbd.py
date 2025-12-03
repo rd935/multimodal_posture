@@ -215,7 +215,7 @@ class MultimodalRGBDAttentionFusion(nn.Module):
         self.fusion_mlp = nn.Sequential(
             nn.Linear(2 * embed_dim, fusion_hidden_dim),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0.5),
             nn.Linear(fusion_hidden_dim, num_classes),
         )
 
