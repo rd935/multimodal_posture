@@ -129,9 +129,10 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
             rgb = torch.zeros_like(rgb)
         elif scenario == "depth_missing":
             depth = torch.zeros_like(depth)
-        # else "full": use both as-is
+        # "full" → leave both as-is
 
-        logits, _ = model(
+        # No extras requested → model returns ONLY logits
+        logits = model(
             rgb,
             depth,
             return_embeddings=False,
@@ -150,6 +151,7 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
     acc = (all_preds == all_labels).mean()
 
     return acc, cm, all_preds, all_labels
+
 
 
 def main():
