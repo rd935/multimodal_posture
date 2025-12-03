@@ -585,11 +585,20 @@ def main():
                 print(f"[INFO] Early stopping at epoch {epoch} (best epoch {best_epoch})")
                 break
 
-    best_ckpt = ckpt_dir / "fusion_core_best.pt"
-    model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
+    # --- after Stage-1 training loop ---
+    best_ckpt_stage1 = ckpt_dir / "fusion_core_best.pt"
+    best_val_acc_stage1 = best_val_acc  # you were already tracking this
+
+    # Evaluate Stage-1 core
+    model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
+    test_loss_s1, test_acc_s1, cm_s1, preds_s1, labels_s1, _, _ = \
+        evaluate_with_attention_core(model, test_loader, eval_criterion, num_classes)
+    f1_s1 = f1_score(labels_s1, preds_s1, average="macro")
+    print(f"[TEST - Stage1] loss={test_loss_s1:.4f}, acc={test_acc_s1:.4f}, macro_F1={f1_s1:.4f}")
+    print("[TEST - Stage1] Confusion matrix:\n", cm_s1)
 
     print("[INFO] Starting Stage-2 uncertainty fine-tune...")
-    ft_best_val = finetune_uncertainty(
+    best_val_acc_stage2 = finetune_uncertainty(
         model,
         train_loader,
         val_loader,
@@ -603,7 +612,17 @@ def main():
         patience=3,
     )
 
-    print(f"[INFO] Fine-tune best val_acc={ft_best_val:.4f}")
+    best_ckpt_stage2 = ckpt_dir / "fusion_core_best_ft.pt"
+
+    # Decide which model to use for the "main" test accuracy
+    delta = 0.005  # 0.5% tolerance
+    if best_val_acc_stage2 + delta >= best_val_acc_stage1 and best_ckpt_stage2.exists():
+        print("[INFO] Using Stage-2 (uncertainty) weights for main test metrics.")
+        model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
+    else:
+        print("[INFO] Stage-2 did not improve val_acc; reverting to Stage-1 weights for main test metrics.")
+        model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
+
 
     (
         test_loss,
