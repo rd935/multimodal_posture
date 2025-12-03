@@ -1,0 +1,33 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 0
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_core.yaml
+[INFO] Dataset sizes: train=539, val=215, test=107
+[INFO] Loading fine-tuned checkpoint: /cache/home/rd935/multimodal_posture/checkpoints/fusion_core/fusion_core_best_ft.pt
+
+[INFO] Evaluating scenario: full
+[full] test_acc = 0.9533
+[full] confusion matrix:
+[[52  0  0]
+ [ 3 31  2]
+ [ 0  0 19]]
+
+[INFO] Evaluating scenario: rgb_missing
+[rgb_missing] test_acc = 0.8879
+[rgb_missing] confusion matrix:
+[[52  0  0]
+ [ 4 24  8]
+ [ 0  0 19]]
+
+[INFO] Evaluating scenario: depth_missing
+[depth_missing] test_acc = 0.8692
+[depth_missing] confusion matrix:
+[[52  0  0]
+ [10 22  4]
+ [ 0  0 19]]
+
+[INFO] Saved missing-modality results to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_missing_modality_results.json

@@ -11,6 +11,7 @@ import torch.nn as nn
 from torch.optim import Adam
 from sklearn.metrics import confusion_matrix, f1_score
 import matplotlib.pyplot as plt
+import random
 
 # ---------------------------------------------------------
 # Path setup so we can import datasets/ and models/
@@ -24,6 +25,14 @@ from datasets.dataloaders import make_utd_mhad_loaders
 from models.rgb_depth_baselines import RGBBaselineResNet18
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+def set_seed(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def train_one_epoch(model, loader, optimizer, criterion):
@@ -120,6 +129,7 @@ def plot_confusion_matrix(cm, class_names, out_path, title="Confusion Matrix"):
 
 
 def main():
+    set_seed(42)
     # -----------------------------------------------------
     # Load YAML config
     # -----------------------------------------------------

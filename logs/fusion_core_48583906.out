@@ -1,0 +1,46 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 0
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_core.yaml
+[INFO] Using seed: 42
+[DEBUG] Dataset sizes: train=539, val=215, test=107
+[INFO] Core fusion train label counts: Counter({0: 259, 1: 180, 2: 100})
+[INFO] Core fusion class weights: tensor([0.1989, 0.2861, 0.5150], device='cuda:0')
+Epoch 01 | train_loss=0.3211, train_cls=0.2987, train_contrast=1.0160, train_acc=0.5343 | val_loss=1.0646, val_acc=0.3535
+  [*] New best val_acc=0.3535, checkpoint saved.
+Epoch 02 | train_loss=0.2543, train_cls=0.2411, train_contrast=0.5561, train_acc=0.8145 | val_loss=0.8160, val_acc=0.8372
+  [*] New best val_acc=0.8372, checkpoint saved.
+Epoch 03 | train_loss=0.1846, train_cls=0.1680, train_contrast=0.7256, train_acc=0.8980 | val_loss=0.7060, val_acc=0.7256
+Epoch 04 | train_loss=0.1285, train_cls=0.1108, train_contrast=0.7845, train_acc=0.9406 | val_loss=0.5084, val_acc=0.8419
+  [*] New best val_acc=0.8419, checkpoint saved.
+Epoch 05 | train_loss=0.1037, train_cls=0.0840, train_contrast=0.8794, train_acc=0.9276 | val_loss=0.8377, val_acc=0.6744
+Epoch 06 | train_loss=0.0730, train_cls=0.0580, train_contrast=0.6475, train_acc=0.9592 | val_loss=0.5725, val_acc=0.7953
+Epoch 07 | train_loss=0.0591, train_cls=0.0435, train_contrast=0.6776, train_acc=0.9740 | val_loss=0.5758, val_acc=0.7442
+Epoch 08 | train_loss=0.0522, train_cls=0.0379, train_contrast=0.6122, train_acc=0.9814 | val_loss=1.0524, val_acc=0.5814
+Epoch 09 | train_loss=0.0660, train_cls=0.0484, train_contrast=0.7813, train_acc=0.9573 | val_loss=0.8898, val_acc=0.6233
+Epoch 10 | train_loss=0.0435, train_cls=0.0298, train_contrast=0.5817, train_acc=0.9889 | val_loss=0.7052, val_acc=0.6930
+Epoch 11 | train_loss=0.0660, train_cls=0.0511, train_contrast=0.6448, train_acc=0.9518 | val_loss=1.0226, val_acc=0.6140
+Epoch 12 | train_loss=0.0490, train_cls=0.0332, train_contrast=0.6851, train_acc=0.9796 | val_loss=1.0712, val_acc=0.6465
+[INFO] Early stopping at epoch 12 (best epoch 4)
+[INFO] Starting Stage-2 uncertainty fine-tune...
+[INFO] Starting uncertainty fine-tuning stage...
+[FT] Epoch 01 | train_loss=0.0830, train_acc=0.9425 | val_loss=0.5157, val_acc=0.8186
+[FT] Epoch 02 | train_loss=0.0664, train_acc=0.9499 | val_loss=0.4686, val_acc=0.8372
+[FT] Epoch 03 | train_loss=0.0628, train_acc=0.9425 | val_loss=0.5449, val_acc=0.7860
+[FT] Epoch 04 | train_loss=0.0589, train_acc=0.9388 | val_loss=0.5239, val_acc=0.7814
+[FT] Epoch 05 | train_loss=0.0493, train_acc=0.9555 | val_loss=0.5569, val_acc=0.7302
+[FT] Early stopping fine-tune at epoch 5 (best epoch 2)
+[INFO] Fine-tune best val_acc=0.8372
+[TEST] loss=0.2325, acc=0.9533
+[TEST] Confusion matrix:
+ [[52  0  0]
+ [ 3 31  2]
+ [ 0  0 19]]
+[TEST] Mean modality attention (overall) [RGB, Depth]: [0.5263873  0.47361276]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_confusion_matrix.png
+[INFO] Saved attention heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_heatmap.png
