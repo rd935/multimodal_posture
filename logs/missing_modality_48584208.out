@@ -1,0 +1,22 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 0
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_core.yaml
+[INFO] Dataset sizes: train=539, val=215, test=107
+[INFO] Loading fine-tuned checkpoint: /cache/home/rd935/multimodal_posture/checkpoints/fusion_core/fusion_core_best_ft.pt
+
+[INFO] Evaluating scenario: full
+Traceback (most recent call last):
+  File "/cache/home/rd935/multimodal_posture/src/eval_missing_modalities.py", line 195, in <module>
+    main()
+  File "/cache/home/rd935/multimodal_posture/src/eval_missing_modalities.py", line 168, in main
+    acc, cm, preds, labels = eval_scenario(model, test_loader, num_classes, scenario)
+  File "/home/rd935/miniconda3/envs/multimodal_posture/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+    return func(*args, **kwargs)
+  File "/cache/home/rd935/multimodal_posture/src/eval_missing_modalities.py", line 134, in eval_scenario
+    logits, _ = model(
+ValueError: too many values to unpack (expected 2)
