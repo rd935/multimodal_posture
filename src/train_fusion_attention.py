@@ -323,11 +323,11 @@ def main():
         freeze_backbone=freeze_backbone,
     ).to(DEVICE)
 
-    criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=0.05)
+    criterion = nn.CrossEntropyLoss(weight=weights)
 
     optimizer = Adam(
         model.parameters(),
-        lr=lr,           # from YAML, e.g. 1e-4
+        lr=lr,           
         weight_decay=1e-4,
     )
 

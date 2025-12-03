@@ -20,7 +20,6 @@ from torchvision import transforms
 # Example ONLY — you MUST EDIT these:
 STABLE_ACTIONS = [1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 16, 18, 19]
 
-
 UNSTABLE_ACTIONS = [7, 12, 13, 14, 15, 17, 20, 21, 22]
 
 FALLING_ACTIONS = [23, 24, 25, 26, 27]

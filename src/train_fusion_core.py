@@ -468,6 +468,7 @@ def main():
         num_workers=num_workers,
         rgb_frames=rgb_frames,
         resize=resize,
+        label_mode="stability3",
     )
 
     print(
@@ -511,7 +512,7 @@ def main():
         contrastive_temperature=contrastive_temperature,
     ).to(DEVICE)
 
-    label_smoothing = float(train_cfg.get("label_smoothing", 0.05))
+    label_smoothing = float(train_cfg.get("label_smoothing", 0))
 
     base_criterion = nn.CrossEntropyLoss(
         weight=weights,
@@ -526,7 +527,7 @@ def main():
     optimizer = Adam(
         model.parameters(),
         lr=lr,
-        weight_decay=5e-4,
+        weight_decay=1e-4,
     )
 
     best_val_acc = 0.0

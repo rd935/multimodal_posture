@@ -2,6 +2,7 @@
 
 import csv
 from pathlib import Path
+import random
 
 # Path to your full index.csv
 INDEX_CSV = Path("data/utd_mhad/index.csv")   # <-- change if needed
@@ -30,14 +31,18 @@ def main():
     if len(subjects) < 3:
         raise ValueError("Need at least 3 subjects to do train/val/test split.")
 
+    random.seed(42)  # or any fixed seed for reproducibility
+    random.shuffle(subjects)
+    print(f"[INFO] Shuffled subjects: {subjects}")
+
     # ----------------------------------------
     # 2) Split subjects into train/val/test
-    #    For 8 subjects -> 5/1/2 split
+    #    For 8 subjects -> 4/2/2 split
     # ----------------------------------------
     n = len(subjects)
-    # heuristic: 60% train, 20% val, 20% test (by subject)
-    n_train = max(1, int(round(0.6 * n)))
-    n_val = max(1, int(round(0.2 * n)))
+    # heuristic: 50% train, 25% val, 25% test (by subject)
+    n_train = max(1, int(round(0.5 * n)))
+    n_val = max(1, int(round(0.25 * n)))
     # ensure total doesn't exceed n
     if n_train + n_val >= n:
         n_train = n - 2
