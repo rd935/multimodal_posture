@@ -171,8 +171,8 @@ class UTDMHADRGBD(Dataset):
 
     def __getitem__(self, idx):
         row = self.items[idx]
-        rgb_path = Path(row["rgb_path"])
-        depth_path = Path(row["depth_path"])
+        rgb_path = Path(row["rgb_path"].replace("\\", "/"))
+        depth_path = Path(row["depth_path"].replace("\\", "/"))
 
         # Original 27-class label (0..26) and 1-based action ID from CSV
         raw_label_27 = int(row["label"])
