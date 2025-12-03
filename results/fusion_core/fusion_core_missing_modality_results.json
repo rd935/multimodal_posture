@@ -1,0 +1,70 @@
+{
+  "config_path": "config/fusion_core.yaml",
+  "results": {
+    "full": {
+      "acc": 0.9532710280373832,
+      "confusion_matrix": [
+        [
+          52,
+          0,
+          0
+        ],
+        [
+          3,
+          31,
+          2
+        ],
+        [
+          0,
+          0,
+          19
+        ]
+      ]
+    },
+    "rgb_missing": {
+      "acc": 0.8878504672897196,
+      "confusion_matrix": [
+        [
+          52,
+          0,
+          0
+        ],
+        [
+          4,
+          24,
+          8
+        ],
+        [
+          0,
+          0,
+          19
+        ]
+      ]
+    },
+    "depth_missing": {
+      "acc": 0.8691588785046729,
+      "confusion_matrix": [
+        [
+          52,
+          0,
+          0
+        ],
+        [
+          10,
+          22,
+          4
+        ],
+        [
+          0,
+          0,
+          19
+        ]
+      ]
+    }
+  },
+  "class_names": [
+    "stable",
+    "unstable",
+    "falling"
+  ]
+}
