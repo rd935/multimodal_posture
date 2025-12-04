@@ -236,15 +236,15 @@ def finetune_uncertainty(
     for _, param in model.named_parameters():
         param.requires_grad = False
 
-    # unfreeze classifier + uncertainty heads
     for name, param in model.named_parameters():
-        if "core_classifier" in name or "rgb_var_head" in name or "depth_var_head" in name:
+        if "rgb_var_head" in name or "depth_var_head" in name:
             param.requires_grad = True
+
 
     optimizer = Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=finetune_lr,
-        weight_decay=1e-4,
+        weight_decay=5e-4,
     )
 
     best_val_acc = 0.0
@@ -607,16 +607,21 @@ def main():
         contrastive_temperature,
         w_uncertainty_reg=w_uncertainty_reg,
         num_classes=num_classes,
-        finetune_epochs=8,
-        finetune_lr=5e-5,
-        patience=3,
+        finetune_epochs=10,
+        finetune_lr=1e-5,
+        patience=4,
     )
 
     best_ckpt_stage2 = ckpt_dir / "fusion_core_best_ft.pt"
 
-    model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
-
-
+    delta = 0.005  # 0.5%
+    if best_val_acc_stage2 + delta >= best_val_acc_stage1 and best_ckpt_stage2.exists():
+        print("[INFO] Using Stage-2 weights for main test metrics.")
+        model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
+    else:
+        print("[INFO] Stage-2 did not improve val_acc; reverting to Stage-1 weights.")
+        model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
+        
     (
         test_loss,
         test_acc,
