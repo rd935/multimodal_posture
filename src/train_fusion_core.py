@@ -236,10 +236,10 @@ def finetune_uncertainty(
     for _, param in model.named_parameters():
         param.requires_grad = False
 
+    # unfreeze classifier + uncertainty heads
     for name, param in model.named_parameters():
-        if "rgb_var_head" in name or "depth_var_head" in name:
+        if "core_classifier" in name or "rgb_var_head" in name or "depth_var_head" in name:
             param.requires_grad = True
-
 
     optimizer = Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
@@ -468,7 +468,6 @@ def main():
         num_workers=num_workers,
         rgb_frames=rgb_frames,
         resize=resize,
-        label_mode="stability3",
     )
 
     print(
@@ -607,9 +606,9 @@ def main():
         contrastive_temperature,
         w_uncertainty_reg=w_uncertainty_reg,
         num_classes=num_classes,
-        finetune_epochs=10,
-        finetune_lr=1e-5,
-        patience=4,
+        finetune_epochs=8,
+        finetune_lr=5e-5,
+        patience=3,
     )
 
     best_ckpt_stage2 = ckpt_dir / "fusion_core_best_ft.pt"
@@ -621,7 +620,7 @@ def main():
     else:
         print("[INFO] Stage-2 did not improve val_acc; reverting to Stage-1 weights.")
         model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
-        
+
     (
         test_loss,
         test_acc,
@@ -635,8 +634,8 @@ def main():
     # ---- F1 score (macro) ----
     test_f1_macro = f1_score(test_labels, test_preds, average="macro")
 
-    print(f"[TEST] loss={test_loss:.4f}, acc={test_acc:.4f}, macro_F1={test_f1_macro:.4f}")
-    print("[TEST] Confusion matrix:\n", test_cm)
+    print(f"[TEST - Stage 2] loss={test_loss:.4f}, acc={test_acc:.4f}, macro_F1={test_f1_macro:.4f}")
+    print("[TEST - Stage 2] Confusion matrix:\n", test_cm)
     print("[TEST] Mean modality attention (overall) [RGB, Depth]:", mean_modality_attention)
 
     results = {
