@@ -202,7 +202,7 @@ def main():
     # If you don't want weighting, just do:
     # criterion = nn.CrossEntropyLoss()
 
-    optimizer = Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+    optimizer = Adam(model.parameters(), lr=lr)
 
     best_val_acc = 0.0
     best_epoch = 0
