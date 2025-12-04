@@ -328,7 +328,7 @@ def main():
     optimizer = Adam(
         model.parameters(),
         lr=lr,           
-        weight_decay=1e-4,
+        weight_decay=5e-4,
     )
 
     best_val_acc = 0.0
