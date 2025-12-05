@@ -235,7 +235,7 @@ def finetune_uncertainty(
     # Stage-2 CE: no class weights, tiny label smoothing to help generalization
     stage2_criterion = nn.CrossEntropyLoss(
         weight=None,
-        label_smoothing=0.05,
+        label_smoothing=0.0,
         reduction="none",
     ).to(DEVICE)
 
