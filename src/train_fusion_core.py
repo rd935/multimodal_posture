@@ -528,12 +528,12 @@ def main():
     label_smoothing = float(train_cfg.get("label_smoothing", 0))
 
     base_criterion = nn.CrossEntropyLoss(
-        weight=weights,
+        weight=None,
         label_smoothing=label_smoothing,
         reduction="none",
     )
     eval_criterion = nn.CrossEntropyLoss(
-        weight=weights,
+        weight=None,
         label_smoothing=label_smoothing,
     )
 

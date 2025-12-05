@@ -11,7 +11,7 @@ train:
   learning_rate: 1e-4
   batch_size: 8
   seed: 42
-  label_smoothing: 0.5
+  label_smoothing: 0.1
 
 loader:
   num_workers: 4
@@ -30,7 +30,7 @@ model:
 
 loss:
   contrastive_temperature: 0.1
-  contrastive_weight: 0.02           # tune: e.g. 0.05–0.2
+  contrastive_weight: 0.01           # tune: e.g. 0.05–0.2
   uncertainty_reg_weight: 0.0005      # keeps log-variance bounded
-  attn_entropy_weight: 0.003         # similar to your attention model, can reduce if too strong
+  attn_entropy_weight: 0.002         # similar to your attention model, can reduce if too strong
 
