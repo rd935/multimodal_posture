@@ -232,19 +232,41 @@ def finetune_uncertainty(
     """
     print("[INFO] Starting uncertainty fine-tuning stage...")
 
-    # freeze everything
+        # 1) Freeze everything by default
     for _, param in model.named_parameters():
         param.requires_grad = False
 
-    # unfreeze classifier + uncertainty heads
-    for name, param in model.named_parameters():
-        if "core_classifier" in name or "rgb_var_head" in name or "depth_var_head" in name:
-            param.requires_grad = True
+    # 2) Separate params:
+    #    - classifier_params: very small LR
+    #    - uncertainty_params: normal LR
+    classifier_params = []
+    uncertainty_params = []
 
+    for name, param in model.named_parameters():
+        if "core_classifier" in name:
+            param.requires_grad = True
+            classifier_params.append(param)
+        if "rgb_var_head" in name or "depth_var_head" in name:
+            param.requires_grad = True
+            uncertainty_params.append(param)
+
+    # Safety: make sure we actually found them
+    assert len(uncertainty_params) > 0, "No uncertainty head params found!"
+    assert len(classifier_params) > 0, "No core_classifier params found!"
+
+    # 3) OPTIONAL but recommended: freeze BatchNorm running stats so logits stay stable
+    def _set_bn_eval(m):
+        if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
+            m.eval()
+
+    model.apply(_set_bn_eval)
+
+    # 4) Optimizer: tiny LR for classifier, normal LR for uncertainty heads, no weight decay
     optimizer = Adam(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=finetune_lr,
-        weight_decay=5e-4,
+        [
+            {"params": classifier_params,   "lr": finetune_lr * 0.1, "weight_decay": 0.0},
+            {"params": uncertainty_params,  "lr": finetune_lr,       "weight_decay": 0.0},
+        ]
     )
 
     best_val_acc = 0.0
@@ -455,9 +477,9 @@ def main():
     results_dir.mkdir(parents=True, exist_ok=True)
 
     contrastive_temperature = float(loss_cfg.get("contrastive_temperature", 0.1))
-    w_contrastive = float(loss_cfg.get("contrastive_weight", 0.1))
-    w_uncertainty_reg = float(loss_cfg.get("uncertainty_reg_weight", 0.01))
-    w_attn_entropy = float(loss_cfg.get("attn_entropy_weight", 0.01))
+    w_contrastive = float(loss_cfg.get("contrastive_weight", 0.02))
+    w_uncertainty_reg = float(loss_cfg.get("uncertainty_reg_weight", 0.0005))
+    w_attn_entropy = float(loss_cfg.get("attn_entropy_weight", 0.003))
 
     # Data loaders
     train_loader, val_loader, test_loader = make_utd_mhad_loaders(
@@ -607,13 +629,13 @@ def main():
         w_uncertainty_reg=w_uncertainty_reg,
         num_classes=num_classes,
         finetune_epochs=8,
-        finetune_lr=5e-5,
+        finetune_lr=3e-5,
         patience=3,
     )
 
     best_ckpt_stage2 = ckpt_dir / "fusion_core_best_ft.pt"
 
-    delta = 0.005  # 0.5%
+    delta = 0.0  # 0.5%
     if best_val_acc_stage2 + delta >= best_val_acc_stage1 and best_ckpt_stage2.exists():
         print("[INFO] Using Stage-2 weights for main test metrics.")
         model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
