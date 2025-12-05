@@ -11,7 +11,7 @@ train:
   learning_rate: 1e-4
   batch_size: 8
   seed: 42
-  label_smoothing: 0
+  label_smoothing: 0.5
 
 loader:
   num_workers: 4

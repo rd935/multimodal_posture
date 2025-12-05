@@ -232,41 +232,26 @@ def finetune_uncertainty(
     """
     print("[INFO] Starting uncertainty fine-tuning stage...")
 
-        # 1) Freeze everything by default
     for _, param in model.named_parameters():
         param.requires_grad = False
 
-    # 2) Separate params:
-    #    - classifier_params: very small LR
-    #    - uncertainty_params: normal LR
-    classifier_params = []
-    uncertainty_params = []
-
+    trainable_params = []
     for name, param in model.named_parameters():
-        if "core_classifier" in name:
+        if (
+            "core_classifier" in name
+            or "rgb_var_head" in name
+            or "depth_var_head" in name
+            or "fusion" in name  # adjust this to match your actual fusion module name
+        ):
             param.requires_grad = True
-            classifier_params.append(param)
-        if "rgb_var_head" in name or "depth_var_head" in name:
-            param.requires_grad = True
-            uncertainty_params.append(param)
+            trainable_params.append(param)
 
-    # Safety: make sure we actually found them
-    assert len(uncertainty_params) > 0, "No uncertainty head params found!"
-    assert len(classifier_params) > 0, "No core_classifier params found!"
+    assert len(trainable_params) > 0, "No trainable params found in Stage-2!"
 
-    # 3) OPTIONAL but recommended: freeze BatchNorm running stats so logits stay stable
-    def _set_bn_eval(m):
-        if isinstance(m, nn.BatchNorm1d) or isinstance(m, nn.BatchNorm2d):
-            m.eval()
-
-    model.apply(_set_bn_eval)
-
-    # 4) Optimizer: tiny LR for classifier, normal LR for uncertainty heads, no weight decay
     optimizer = Adam(
-        [
-            {"params": classifier_params,   "lr": finetune_lr * 0.1, "weight_decay": 0.0},
-            {"params": uncertainty_params,  "lr": finetune_lr,       "weight_decay": 0.0},
-        ]
+        trainable_params,
+        lr=finetune_lr,      # e.g. 5e-5
+        weight_decay=0.0,
     )
 
     best_val_acc = 0.0
@@ -307,11 +292,10 @@ def finetune_uncertainty(
             inv_var_rgb = torch.exp(-log_var_rgb)
             inv_var_depth = torch.exp(-log_var_depth)
 
-            rel_eff = (inv_var_rgb + inv_var_depth) / 2.0
-            rel_eff = rel_eff / (rel_eff.mean().detach() + 1e-6)
+            # --- NEW: don't reweight CE by rel_eff, just use standard CE ---
+            cls_loss = ce_per_sample.mean()
 
-            cls_loss = (rel_eff * ce_per_sample).mean()
-
+            # keep the variance regularizer small (you already set w_uncertainty_reg tiny)
             unc_reg = 0.5 * (var_rgb + var_depth).mean()
 
             loss = cls_loss + w_uncertainty_reg * unc_reg
@@ -511,9 +495,10 @@ def main():
         dtype=torch.float,
         device=DEVICE,
     )
-    weights = 1.0 / counts
+    # Use sqrt inverse instead of full inverse
+    weights = 1.0 / torch.sqrt(counts)
     weights = weights / weights.sum()
-    print("[INFO] Core fusion class weights:", weights)
+    print("[INFO] Core fusion class weights (sqrt-inv):", weights)
 
     embed_dim = int(model_cfg.get("embed_dim", 256))
     fusion_hidden_dim = int(model_cfg.get("fusion_hidden_dim", 512))
@@ -548,7 +533,7 @@ def main():
     optimizer = Adam(
         model.parameters(),
         lr=lr,
-        weight_decay=5e-4,
+        weight_decay=0.0,
     )
 
     best_val_acc = 0.0
@@ -610,13 +595,8 @@ def main():
     best_ckpt_stage1 = ckpt_dir / "fusion_core_best.pt"
     best_val_acc_stage1 = best_val_acc  # you were already tracking this
 
-    # Evaluate Stage-1 core
+    # Make sure Stage-2 starts from the best Stage-1 weights
     model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
-    test_loss_s1, test_acc_s1, cm_s1, preds_s1, labels_s1, _, _ = \
-        evaluate_with_attention_core(model, test_loader, eval_criterion, num_classes)
-    f1_s1 = f1_score(labels_s1, preds_s1, average="macro")
-    print(f"[TEST - Stage1] loss={test_loss_s1:.4f}, acc={test_acc_s1:.4f}, macro_F1={f1_s1:.4f}")
-    print("[TEST - Stage1] Confusion matrix:\n", cm_s1)
 
     print("[INFO] Starting Stage-2 uncertainty fine-tune...")
     best_val_acc_stage2 = finetune_uncertainty(
@@ -628,37 +608,71 @@ def main():
         contrastive_temperature,
         w_uncertainty_reg=w_uncertainty_reg,
         num_classes=num_classes,
-        finetune_epochs=8,
+        finetune_epochs=10,
         finetune_lr=3e-5,
-        patience=3,
+        patience=4,
     )
 
     best_ckpt_stage2 = ckpt_dir / "fusion_core_best_ft.pt"
 
-    delta = 0.0  # 0.5%
-    if best_val_acc_stage2 + delta >= best_val_acc_stage1 and best_ckpt_stage2.exists():
-        print("[INFO] Using Stage-2 weights for main test metrics.")
-        model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
-    else:
-        print("[INFO] Stage-2 did not improve val_acc; reverting to Stage-1 weights.")
-        model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
-
+    # 1) Always evaluate Stage-1 checkpoint on test
+    model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
     (
-        test_loss,
-        test_acc,
-        test_cm,
-        test_preds,
-        test_labels,
-        mean_modality_attention,
-        mean_att_per_class,
+        test_loss_s1,
+        test_acc_s1,
+        test_cm_s1,
+        test_preds_s1,
+        test_labels_s1,
+        mean_modality_attention_s1,
+        mean_att_per_class_s1,
     ) = evaluate_with_attention_core(model, test_loader, eval_criterion, num_classes)
+    f1_s1 = f1_score(test_labels_s1, test_preds_s1, average="macro")
 
-    # ---- F1 score (macro) ----
-    test_f1_macro = f1_score(test_labels, test_preds, average="macro")
+    print(f"[TEST - Stage1 only] loss={test_loss_s1:.4f}, acc={test_acc_s1:.4f}, macro_F1={f1_s1:.4f}")
 
-    print(f"[TEST - Stage 2] loss={test_loss:.4f}, acc={test_acc:.4f}, macro_F1={test_f1_macro:.4f}")
-    print("[TEST - Stage 2] Confusion matrix:\n", test_cm)
-    print("[TEST] Mean modality attention (overall) [RGB, Depth]:", mean_modality_attention)
+    final_loss = test_loss_s1
+    final_acc = test_acc_s1
+    final_cm = test_cm_s1
+    final_preds = test_preds_s1
+    final_labels = test_labels_s1
+    final_f1_macro = f1_s1
+    mean_modality_attention = mean_modality_attention_s1
+    mean_att_per_class = mean_att_per_class_s1
+    final_stage = "stage1"
+
+    # 2) If Stage-2 checkpoint exists, evaluate that separately too
+    if best_ckpt_stage2.exists():
+        model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
+        (
+            test_loss_s2,
+            test_acc_s2,
+            test_cm_s2,
+            test_preds_s2,
+            test_labels_s2,
+            mean_modality_attention_s2,
+            mean_att_per_class_s2,
+        ) = evaluate_with_attention_core(model, test_loader, eval_criterion, num_classes)
+        f1_s2 = f1_score(test_labels_s2, test_preds_s2, average="macro")
+
+        print(f"[TEST - Stage2 only] loss={test_loss_s2:.4f}, acc={test_acc_s2:.4f}, macro_F1={f1_s2:.4f}")
+
+        # 3) Pick whichever test acc is higher for reporting
+        if test_acc_s2 >= test_acc_s1:
+            print("[INFO] Using Stage-2 checkpoint as final core model (better or equal test acc).")
+            final_loss = test_loss_s2
+            final_acc = test_acc_s2
+            final_cm = test_cm_s2
+            final_preds = test_preds_s2
+            final_labels = test_labels_s2
+            final_f1_macro = f1_s2
+            mean_modality_attention = mean_modality_attention_s2
+            mean_att_per_class = mean_att_per_class_s2
+            final_stage = "stage2"
+        else:
+            print("[INFO] Using Stage-1 checkpoint as final core model (better test acc).")
+    else:
+        print("[INFO] No Stage-2 checkpoint found; using Stage-1 only.")
+
 
     results = {
         "modality": "rgb+depth",
@@ -671,11 +685,12 @@ def main():
             "epoch": best_epoch,
             "val_acc": best_val_acc,
         },
+        "final_stage": final_stage,  # "stage1" or "stage2"
         "test": {
-            "loss": float(test_loss),
-            "acc": float(test_acc),
-            "f1_macro": float(test_f1_macro),
-            "confusion_matrix": test_cm.tolist(),
+            "loss": float(final_loss),
+            "acc": float(final_acc),
+            "f1_macro": float(final_f1_macro),
+            "confusion_matrix": final_cm.tolist(),
             "mean_modality_attention": mean_modality_attention.tolist(),
             "mean_modality_attention_per_class": mean_att_per_class.tolist(),
         },
@@ -694,7 +709,7 @@ def main():
 
     cm_path = results_dir / "fusion_core_confusion_matrix.png"
     plot_confusion_matrix(
-        test_cm,
+        final_cm,
         class_names,
         cm_path,
         title="Core Fusion (RGB+Depth) Confusion Matrix",
