@@ -232,6 +232,13 @@ def finetune_uncertainty(
     """
     print("[INFO] Starting uncertainty fine-tuning stage...")
 
+    # Stage-2 CE: no class weights, tiny label smoothing to help generalization
+    stage2_criterion = nn.CrossEntropyLoss(
+        weight=None,
+        label_smoothing=0.05,
+        reduction="none",
+    ).to(DEVICE)
+
     for _, param in model.named_parameters():
         param.requires_grad = False
 
@@ -281,7 +288,7 @@ def finetune_uncertainty(
                 return_uncertainty=True,
             )
 
-            ce_per_sample = base_criterion(logits, labels)  # (B,)
+            ce_per_sample = stage2_criterion(logits, labels)  # (B,)
 
             log_var_rgb = extras["log_var_rgb"]
             log_var_depth = extras["log_var_depth"]
@@ -609,8 +616,8 @@ def main():
         w_uncertainty_reg=w_uncertainty_reg,
         num_classes=num_classes,
         finetune_epochs=10,
-        finetune_lr=3e-5,
-        patience=4,
+        finetune_lr=2e-5,
+        patience=5,
     )
 
     best_ckpt_stage2 = ckpt_dir / "fusion_core_best_ft.pt"
