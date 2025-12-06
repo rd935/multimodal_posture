@@ -312,20 +312,24 @@ class MultimodalRGBDAttentionFusion(nn.Module):
 
         return logits, extras
 
-class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
+class MultimodalRGBDCoreFusion(nn.Module):
     """
-    Core fusion model: attention fusion + uncertainty heads.
+    Core fusion model: attention fusion + uncertainty-aware weighting + contrastive hooks.
 
-    - Uses the same RGB/Depth encoders and attention fusion as MultimodalRGBDAttentionFusion.
-    - Adds per-modality variance heads (predict log-variance for RGB and Depth embeddings).
-    - Forward can return:
-        - logits
-        - embeddings z_rgb, z_depth
-        - modality attention weights
-        - log-variance for each modality (log_var_rgb, log_var_depth)
+    - Uses the SAME RGB/Depth encoders as the attention baseline.
+    - Uses an attention MLP over [z_rgb; z_depth] to produce modality weights.
+    - Adds per-modality variance (uncertainty) heads and uses them to reweight modalities
+      BEFORE fusion (so they affect logits at train and test).
+    - Exposes embeddings, attention, and uncertainties via `extras` for losses & analysis.
 
-    Contrastive loss and uncertainty-weighted classification loss are computed in the
-    training script using these outputs.
+    Forward signature matches your existing scripts:
+
+        logits, extras = model(
+            rgb, depth,
+            return_embeddings=True/False,
+            return_attention=True/False,
+            return_uncertainty=True/False,
+        )
     """
 
     def __init__(
@@ -339,7 +343,15 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
         freeze_backbone: bool = False,
         contrastive_temperature: float = 0.1,
     ):
-        super().__init__(
+        super().__init__()
+
+        # ---- backbone: reuse the attention baseline modules ----
+        # We assume you already have these helper modules defined somewhere,
+        # e.g. RGBBaselineResNet, DepthBaselineResNet, etc.
+        from .multimodal_rgbd import MultimodalRGBDAttentionFusion
+
+        # Use the attention model just to instantiate encoders + attn_mlp
+        self.attn_backbone = MultimodalRGBDAttentionFusion(
             num_classes=num_classes,
             embed_dim=embed_dim,
             fusion_hidden_dim=fusion_hidden_dim,
@@ -350,10 +362,14 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
         )
 
         self.contrastive_temperature = contrastive_temperature
+        self.normalize_embeddings = normalize_embeddings
+
+        # Shortcuts for encoder and attention modules
+        self.encode_rgb = self.attn_backbone.encode_rgb
+        self.encode_depth = self.attn_backbone.encode_depth
+        self.attn_mlp = self.attn_backbone.attn_mlp
 
         # ---------- Uncertainty (variance) heads ----------
-        # Predict per-sample log-variance for each modality from its embedding.
-        # Small MLPs keep extra capacity limited.
         hidden_var_dim = embed_dim // 2 if embed_dim >= 64 else embed_dim
 
         self.rgb_var_head = nn.Sequential(
@@ -368,6 +384,7 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
             nn.Linear(hidden_var_dim, 1),
         )
 
+        # Core-specific classifier on fused features
         self.core_classifier = nn.Sequential(
             nn.Linear(2 * embed_dim, fusion_hidden_dim),
             nn.ReLU(inplace=True),
@@ -382,44 +399,66 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
         return_embeddings: bool = False,
         return_attention: bool = False,
         return_uncertainty: bool = False,
-    ):
+    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
         """
         rgb:   (B, T, 3, H, W)
         depth: (B, T, 1, H, W)
 
         Returns:
             - If no flags: logits
-            - If any flags: (logits, extras_dict) where extras may contain:
+            - If any flags: (logits, extras) where `extras` may contain:
                 "z_rgb", "z_depth",
-                "modality_attention",
+                "modality_attention",          # plain attention alphas
+                "effective_attention",         # attention ⊗ inverse-variance weights
                 "log_var_rgb", "log_var_depth"
         """
-        # Encode modalities (same as attention baseline)
-        z_rgb = self.encode_rgb(rgb)      # (B, D)
+        # ---------- 1) Encode modalities ----------
+        z_rgb = self.encode_rgb(rgb)        # (B, D)
         z_depth = self.encode_depth(depth)  # (B, D)
 
-        # ---------- Attention fusion (copied from baseline, but with core classifier) ----------
-        # Early fusion representation
-        z_early = torch.cat([z_rgb, z_depth], dim=-1)  # (B, 2*D)
+        if self.normalize_embeddings:
+            z_rgb = F.normalize(z_rgb, p=2, dim=-1)
+            z_depth = F.normalize(z_depth, p=2, dim=-1)
 
-        # Attention logits and weights using the same attn_mlp as the baseline
-        attn_logits = self.attn_mlp(z_early)           # (B, 2)
+        # ---------- 2) Plain attention over concatenated embeddings ----------
+        z_early = torch.cat([z_rgb, z_depth], dim=-1)      # (B, 2D)
+        attn_logits = self.attn_mlp(z_early)               # (B, 2)
         modality_attention = F.softmax(attn_logits, dim=-1)  # (B, 2)
-        alpha_rgb = modality_attention[:, 0:1]         # (B, 1)
-        alpha_depth = modality_attention[:, 1:2]       # (B, 1)
+        alpha_rgb = modality_attention[:, 0:1]             # (B, 1)
+        alpha_depth = modality_attention[:, 1:2]           # (B, 1)
 
-        # Gated embeddings
-        z_rgb_w = alpha_rgb * z_rgb
-        z_depth_w = alpha_depth * z_depth
-        z_gated = torch.cat([z_rgb_w, z_depth_w], dim=-1)  # (B, 2*D)
+        # ---------- 3) Uncertainty heads ----------
+        log_var_rgb = self.rgb_var_head(z_rgb).squeeze(-1)      # (B,)
+        log_var_depth = self.depth_var_head(z_depth).squeeze(-1)  # (B,)
 
-        # Residual mix (same idea as baseline)
-        z_fused = 0.5 * z_early + 0.5 * z_gated            # (B, 2*D)
+        # clamp for numerical stability
+        log_var_rgb = torch.clamp(log_var_rgb, min=-3.0, max=3.0)
+        log_var_depth = torch.clamp(log_var_depth, min=-3.0, max=3.0)
 
-        # Core-specific classifier
-        logits = self.core_classifier(z_fused)             # (B, num_classes)
+        # inverse-variance weights (higher var => lower weight)
+        w_rgb = torch.exp(-log_var_rgb)     # (B,)
+        w_depth = torch.exp(-log_var_depth) # (B,)
 
-        # Build extras dict if needed
+        w_sum = w_rgb + w_depth + 1e-8
+        w_rgb_norm = (w_rgb / w_sum).unsqueeze(-1)     # (B, 1)
+        w_depth_norm = (w_depth / w_sum).unsqueeze(-1) # (B, 1)
+
+        # ---------- 4) Combine attention + uncertainty weights ----------
+        # Effective weights = attention * inverse-variance weights
+        eff_alpha_rgb = alpha_rgb * w_rgb_norm          # (B, 1)
+        eff_alpha_depth = alpha_depth * w_depth_norm    # (B, 1)
+
+        # ---------- 5) Gated embeddings and fusion ----------
+        z_rgb_w = eff_alpha_rgb * z_rgb                 # (B, D)
+        z_depth_w = eff_alpha_depth * z_depth           # (B, D)
+        z_gated = torch.cat([z_rgb_w, z_depth_w], dim=-1)  # (B, 2D)
+
+        # Small residual mix with early fusion
+        z_fused = 0.5 * z_early + 0.5 * z_gated         # (B, 2D)
+
+        logits = self.core_classifier(z_fused)          # (B, num_classes)
+
+        # ---------- 6) Extras ----------
         needs_extras = return_embeddings or return_attention or return_uncertainty
         if not needs_extras:
             return logits
@@ -431,16 +470,12 @@ class MultimodalRGBDCoreFusion(MultimodalRGBDAttentionFusion):
             extras["z_depth"] = z_depth
 
         if return_attention:
-            extras["modality_attention"] = modality_attention
-            
+            extras["modality_attention"] = modality_attention  # plain attention
+            extras["effective_attention"] = torch.cat(
+                [eff_alpha_rgb, eff_alpha_depth], dim=-1
+            )  # after uncertainty weighting
+
         if return_uncertainty:
-            # (B, 1) -> (B,)
-            log_var_rgb = self.rgb_var_head(z_rgb).squeeze(-1)
-            log_var_depth = self.depth_var_head(z_depth).squeeze(-1)
-
-            log_var_rgb = torch.clamp(log_var_rgb, min=-3.0, max=3.0)
-            log_var_depth = torch.clamp(log_var_depth, min=-3.0, max=3.0)
-
             extras["log_var_rgb"] = log_var_rgb
             extras["log_var_depth"] = log_var_depth
 

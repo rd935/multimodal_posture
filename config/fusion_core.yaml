@@ -29,8 +29,15 @@ model:
   normalize_embeddings: true
 
 loss:
+  # Contrastive learning (helps representation alignment)
   contrastive_temperature: 0.1
-  contrastive_weight: 0.01           # tune: e.g. 0.05–0.2
-  uncertainty_reg_weight: 0.0001      # keeps log-variance bounded
-  attn_entropy_weight: 0.002         # similar to your attention model, can reduce if too strong
+  contrastive_weight: 0.01
 
+  # Uncertainty regularizer (keeps variance heads stable)
+  uncertainty_reg_weight: 0.0001
+
+  # Soft attention entropy penalty (prevents collapsing attention)
+  attn_entropy_weight: 0.002
+
+  # TRAINING-ONLY: randomly drop one modality to learn robustness
+  modality_dropout_prob: 0.3
