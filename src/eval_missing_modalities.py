@@ -25,26 +25,26 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =========================================================
-#   Checkpoint loading (same layout as in compute_ece.py)
+#   Checkpoint loading (same policy as compute_ece.py)
 # =========================================================
 def load_checkpoint(model, model_name: str):
     ckpt_root = PROJECT_ROOT / "checkpoints"
 
     if model_name == "core":
         ckpt_dir = ckpt_root / "fusion_core"
-        ckpt_ft = ckpt_dir / "fusion_core_best_ft.pt"
         ckpt_main = ckpt_dir / "fusion_core_best.pt"
+        ckpt_ft = ckpt_dir / "fusion_core_best_ft.pt"
 
-        if ckpt_ft.exists():
-            ckpt_path = ckpt_ft
-            print(f"[INFO] Loading CORE fine-tuned checkpoint: {ckpt_path}")
-        elif ckpt_main.exists():
+        if ckpt_main.exists():
             ckpt_path = ckpt_main
             print(f"[INFO] Loading CORE main checkpoint: {ckpt_path}")
+        elif ckpt_ft.exists():
+            ckpt_path = ckpt_ft
+            print(f"[INFO] Loading CORE fine-tuned checkpoint (legacy): {ckpt_path}")
         else:
             raise FileNotFoundError(
                 "No core fusion checkpoint found in checkpoints/fusion_core/ "
-                "(expected fusion_core_best_ft.pt or fusion_core_best.pt)"
+                "(expected fusion_core_best.pt or fusion_core_best_ft.pt)"
             )
 
     elif model_name == "attention":

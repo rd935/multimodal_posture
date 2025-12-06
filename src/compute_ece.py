@@ -5,6 +5,7 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
+import json
 
 # ----------------- project root / imports -----------------
 FILE = Path(__file__).resolve()
@@ -22,7 +23,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =========================================================
-#   Checkpoint loading (fixed to your directory layout)
+#   Checkpoint loading (fixed to prefer new unified core)
 # =========================================================
 def load_checkpoint(model, model_name: str):
     """
@@ -31,8 +32,8 @@ def load_checkpoint(model, model_name: str):
     Expected layout (under PROJECT_ROOT/checkpoints):
 
         fusion_core/
-            fusion_core_best_ft.pt   # preferred if exists
-            fusion_core_best.pt      # fallback
+            fusion_core_best.pt        # <-- preferred (new unified core)
+            fusion_core_best_ft.pt     # legacy fine-tuned core (fallback)
 
         fusion_attention/
             fusion_attention_best.pt
@@ -41,19 +42,19 @@ def load_checkpoint(model, model_name: str):
 
     if model_name == "core":
         ckpt_dir = ckpt_root / "fusion_core"
-        ckpt_ft = ckpt_dir / "fusion_core_best_ft.pt"
         ckpt_main = ckpt_dir / "fusion_core_best.pt"
+        ckpt_ft = ckpt_dir / "fusion_core_best_ft.pt"
 
-        if ckpt_ft.exists():
-            ckpt_path = ckpt_ft
-            print(f"[INFO] Loading CORE fine-tuned checkpoint: {ckpt_path}")
-        elif ckpt_main.exists():
+        if ckpt_main.exists():
             ckpt_path = ckpt_main
             print(f"[INFO] Loading CORE main checkpoint: {ckpt_path}")
+        elif ckpt_ft.exists():
+            ckpt_path = ckpt_ft
+            print(f"[INFO] Loading CORE fine-tuned checkpoint (legacy): {ckpt_path}")
         else:
             raise FileNotFoundError(
                 "No core fusion checkpoint found in checkpoints/fusion_core/ "
-                "(expected fusion_core_best_ft.pt or fusion_core_best.pt)"
+                "(expected fusion_core_best.pt or fusion_core_best_ft.pt)"
             )
 
     elif model_name == "attention":
@@ -224,7 +225,7 @@ def plot_reliability(bin_centers, accs, confs, model_name: str, out_path: Path):
 # =========================================================
 #   Inference utils
 # =========================================================
-@torch.no_grad__()
+@torch.no_grad()
 def gather_probs_and_labels(model, data_loader, num_classes: int):
     all_probs = []
     all_labels = []
@@ -314,8 +315,6 @@ def main():
 
     # Save JSON comparison
     out_json = out_dir / "ece_results.json"
-    import json
-
     with open(out_json, "w") as f:
         json.dump(
             {
