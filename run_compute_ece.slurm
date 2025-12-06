@@ -44,6 +44,5 @@ EOF
 
 # ------------------ Run Training ------------------
 
-python src/compute_ece.py config/fusion_core.yaml
-
+python src/compute_ece.py
 

@@ -44,7 +44,4 @@ EOF
 
 # ------------------ Run Training ------------------
 
-python src/eval_missing_modalities.py config/fusion_core.yaml
-
-
-
+python src/eval_missing_modalities.py
