@@ -1,0 +1,48 @@
+---------------------------------------
+Running on host: gpuk006.amarel.rutgers.edu
+CUDA visible devices: 3
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_attention.yaml
+[DEBUG] Dataset sizes: train=431, val=215, test=215
+[INFO] RGB train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] RGB class weights: tensor([0.1970, 0.2845, 0.5186], device='cuda:0')
+Epoch 01 | train_loss=1.0399, train_acc=0.6961 | val_loss=1.0701, val_acc=0.1814
+  [*] New best val_acc=0.1814, checkpoint saved.
+Epoch 02 | train_loss=0.8266, train_acc=0.8956 | val_loss=0.8048, val_acc=0.8419
+  [*] New best val_acc=0.8419, checkpoint saved.
+Epoch 03 | train_loss=0.5807, train_acc=0.9374 | val_loss=0.9117, val_acc=0.5070
+Epoch 04 | train_loss=0.3592, train_acc=0.9443 | val_loss=0.7800, val_acc=0.6326
+Epoch 05 | train_loss=0.2534, train_acc=0.9466 | val_loss=0.6415, val_acc=0.7163
+Epoch 06 | train_loss=0.1994, train_acc=0.9536 | val_loss=0.3701, val_acc=0.8837
+  [*] New best val_acc=0.8837, checkpoint saved.
+Epoch 07 | train_loss=0.1652, train_acc=0.9582 | val_loss=0.5612, val_acc=0.7488
+Epoch 08 | train_loss=0.1633, train_acc=0.9536 | val_loss=0.8153, val_acc=0.7116
+Epoch 09 | train_loss=0.1005, train_acc=0.9745 | val_loss=0.4033, val_acc=0.8372
+Epoch 10 | train_loss=0.1313, train_acc=0.9582 | val_loss=0.4172, val_acc=0.8744
+Epoch 11 | train_loss=0.0666, train_acc=0.9884 | val_loss=0.4343, val_acc=0.8512
+Epoch 12 | train_loss=0.1124, train_acc=0.9675 | val_loss=0.5459, val_acc=0.8093
+Epoch 13 | train_loss=0.0472, train_acc=0.9907 | val_loss=0.3596, val_acc=0.8977
+  [*] New best val_acc=0.8977, checkpoint saved.
+Epoch 14 | train_loss=0.0531, train_acc=0.9861 | val_loss=0.3272, val_acc=0.8977
+Epoch 15 | train_loss=0.0409, train_acc=0.9954 | val_loss=0.2955, val_acc=0.9116
+  [*] New best val_acc=0.9116, checkpoint saved.
+Epoch 16 | train_loss=0.0721, train_acc=0.9745 | val_loss=0.3415, val_acc=0.9070
+Epoch 17 | train_loss=0.0231, train_acc=0.9977 | val_loss=0.4844, val_acc=0.8605
+Epoch 18 | train_loss=0.0710, train_acc=0.9814 | val_loss=0.5050, val_acc=0.8558
+Epoch 19 | train_loss=0.0703, train_acc=0.9745 | val_loss=0.4319, val_acc=0.8651
+Epoch 20 | train_loss=0.0635, train_acc=0.9814 | val_loss=1.1665, val_acc=0.6558
+Epoch 21 | train_loss=0.0495, train_acc=0.9861 | val_loss=0.6551, val_acc=0.8000
+Epoch 22 | train_loss=0.0657, train_acc=0.9814 | val_loss=0.4379, val_acc=0.8558
+[INFO] Early stopping at epoch 22 (best epoch 15)
+[TEST] loss=0.2553, acc=0.9349, macro_F1=0.9428
+[TEST] Confusion matrix:
+ [[94  9  0]
+ [ 4 67  1]
+ [ 0  0 40]]
+[TEST] Mean modality attention (overall) [RGB, Depth]: [0.52932747 0.47067254]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_attention/fusion_attention_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_attention/fusion_attention_confusion_matrix.png
+[INFO] Saved attention heatmap to /cache/home/rd935/multimodal_posture/results/fusion_attention/fusion_attention_heatmap.png

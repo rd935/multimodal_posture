@@ -1,0 +1,27 @@
+---------------------------------------
+Running on host: gpuk006.amarel.rutgers.edu
+CUDA visible devices: 2
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_early.yaml
+[INFO] RGB train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] RGB class weights: tensor([0.1970, 0.2845, 0.5186], device='cuda:0')
+Epoch 01 | train_loss=0.9823, train_acc=0.6868 | val_loss=1.0229, val_acc=0.4465
+  [*] New best val_acc=0.4465, checkpoint saved.
+Epoch 02 | train_loss=0.6998, train_acc=0.8910 | val_loss=0.6175, val_acc=0.8837
+  [*] New best val_acc=0.8837, checkpoint saved.
+Epoch 03 | train_loss=0.4490, train_acc=0.9049 | val_loss=0.5939, val_acc=0.7767
+Epoch 04 | train_loss=0.2888, train_acc=0.9397 | val_loss=0.7435, val_acc=0.7116
+Epoch 05 | train_loss=0.2608, train_acc=0.9188 | val_loss=0.3352, val_acc=0.8744
+Epoch 06 | train_loss=0.1423, train_acc=0.9652 | val_loss=0.4297, val_acc=0.8372
+Epoch 07 | train_loss=0.0906, train_acc=0.9768 | val_loss=0.3371, val_acc=0.8791
+[INFO] Early stopping at epoch 7 (best epoch 2)
+[TEST] loss=0.5931, acc=0.8837, macro_F1=0.8883
+[TEST] Confusion matrix:
+ [[95  8  0]
+ [12 59  1]
+ [ 0  4 36]]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_early/fusion_early_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_early/fusion_early_confusion_matrix.png
