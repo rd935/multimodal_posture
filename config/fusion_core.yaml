@@ -6,12 +6,12 @@ data:
   resize: [224, 224]
 
 train:
-  epochs: 40
-  patience: 8
+  epochs: 60
+  patience: 10
   learning_rate: 1e-4
   batch_size: 8
   seed: 42
-  label_smoothing: 0.1
+  label_smoothing: 0.05
 
 loader:
   num_workers: 4
@@ -31,13 +31,13 @@ model:
 loss:
   # Contrastive learning (helps representation alignment)
   contrastive_temperature: 0.1
-  contrastive_weight: 0.01
+  contrastive_weight: 0.003
 
   # Uncertainty regularizer (keeps variance heads stable)
-  uncertainty_reg_weight: 0.0001
+  uncertainty_reg_weight: 0.00003
 
   # Soft attention entropy penalty (prevents collapsing attention)
-  attn_entropy_weight: 0.002
+  attn_entropy_weight: 0.0005
 
   # TRAINING-ONLY: randomly drop one modality to learn robustness
-  modality_dropout_prob: 0.3
+  modality_dropout_prob: 0

@@ -1,0 +1,15 @@
+{
+  "config_path": "/cache/home/rd935/multimodal_posture/config/fusion_core.yaml",
+  "results": {
+    "attention": {
+      "acc": 0.9348837209302325,
+      "ece": 0.06588263511657716,
+      "num_samples": 215
+    },
+    "core": {
+      "acc": 0.9348837209302325,
+      "ece": 0.04615330086197963,
+      "num_samples": 215
+    }
+  }
+}

@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 from .rgb_depth_baselines import RGBBaselineResNet18, DepthBaselineResNet18
 

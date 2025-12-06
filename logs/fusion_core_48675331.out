@@ -1,0 +1,44 @@
+---------------------------------------
+Running on host: gpuk002.amarel.rutgers.edu
+CUDA visible devices: 2
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_core.yaml
+[INFO] Using seed: 42
+[DEBUG] Dataset sizes: train=431, val=215, test=215
+[INFO] Core fusion train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] Core fusion class weights (sqrt-inv): tensor([0.2615, 0.3143, 0.4243], device='cuda:0')
+Epoch 01 | train_loss=0.3281, train_cls=0.3226, train_contrast=1.6878, train_unc=1.0715, train_acc=0.6381 | val_loss=1.0415, val_acc=0.5209
+  [*] New best val_acc=0.5209, checkpoint saved.
+Epoch 02 | train_loss=0.2773, train_cls=0.2726, train_contrast=1.4440, train_unc=1.0824, train_acc=0.8306 | val_loss=0.9261, val_acc=0.8093
+  [*] New best val_acc=0.8093, checkpoint saved.
+Epoch 03 | train_loss=0.2149, train_cls=0.2102, train_contrast=1.4660, train_unc=1.1295, train_acc=0.9397 | val_loss=0.6313, val_acc=0.8605
+  [*] New best val_acc=0.8605, checkpoint saved.
+Epoch 04 | train_loss=0.1642, train_cls=0.1593, train_contrast=1.5125, train_unc=1.2222, train_acc=0.9234 | val_loss=0.5537, val_acc=0.8651
+  [*] New best val_acc=0.8651, checkpoint saved.
+Epoch 05 | train_loss=0.1303, train_cls=0.1253, train_contrast=1.5841, train_unc=1.3542, train_acc=0.9350 | val_loss=0.5515, val_acc=0.8372
+Epoch 06 | train_loss=0.1026, train_cls=0.0978, train_contrast=1.4968, train_unc=1.4649, train_acc=0.9606 | val_loss=0.4270, val_acc=0.8977
+  [*] New best val_acc=0.8977, checkpoint saved.
+Epoch 07 | train_loss=0.0859, train_cls=0.0811, train_contrast=1.5085, train_unc=1.5214, train_acc=0.9791 | val_loss=0.6212, val_acc=0.8093
+Epoch 08 | train_loss=0.0783, train_cls=0.0736, train_contrast=1.4921, train_unc=1.6045, train_acc=0.9838 | val_loss=0.7225, val_acc=0.7907
+Epoch 09 | train_loss=0.0967, train_cls=0.0916, train_contrast=1.6123, train_unc=1.6264, train_acc=0.9466 | val_loss=0.6805, val_acc=0.7256
+Epoch 10 | train_loss=0.0935, train_cls=0.0885, train_contrast=1.5906, train_unc=1.6324, train_acc=0.9606 | val_loss=0.5376, val_acc=0.8093
+Epoch 11 | train_loss=0.0700, train_cls=0.0656, train_contrast=1.3945, train_unc=1.7004, train_acc=0.9907 | val_loss=0.4501, val_acc=0.8837
+Epoch 12 | train_loss=0.0671, train_cls=0.0628, train_contrast=1.3784, train_unc=1.7317, train_acc=0.9954 | val_loss=0.4068, val_acc=0.9116
+  [*] New best val_acc=0.9116, checkpoint saved.
+Epoch 13 | train_loss=0.0925, train_cls=0.0878, train_contrast=1.5160, train_unc=1.7375, train_acc=0.9513 | val_loss=0.4158, val_acc=0.9070
+Epoch 14 | train_loss=0.0650, train_cls=0.0607, train_contrast=1.3648, train_unc=1.7910, train_acc=0.9977 | val_loss=0.5519, val_acc=0.8372
+Epoch 15 | train_loss=0.0661, train_cls=0.0616, train_contrast=1.4028, train_unc=1.7780, train_acc=0.9954 | val_loss=0.3827, val_acc=0.9070
+Epoch 16 | train_loss=0.0699, train_cls=0.0656, train_contrast=1.3720, train_unc=1.8020, train_acc=0.9861 | val_loss=0.4434, val_acc=0.8605
+Epoch 17 | train_loss=0.0669, train_cls=0.0626, train_contrast=1.3630, train_unc=1.7850, train_acc=0.9930 | val_loss=0.3870, val_acc=0.9116
+Epoch 18 | train_loss=0.0643, train_cls=0.0601, train_contrast=1.3446, train_unc=1.7890, train_acc=0.9954 | val_loss=0.5647, val_acc=0.8326
+Epoch 19 | train_loss=0.0624, train_cls=0.0583, train_contrast=1.3042, train_unc=1.7821, train_acc=1.0000 | val_loss=0.4831, val_acc=0.8744
+Epoch 20 | train_loss=0.0636, train_cls=0.0594, train_contrast=1.3270, train_unc=1.7597, train_acc=0.9977 | val_loss=0.4662, val_acc=0.8605
+Epoch 21 | train_loss=0.0624, train_cls=0.0584, train_contrast=1.2757, train_unc=1.7316, train_acc=1.0000 | val_loss=0.8768, val_acc=0.7116
+Epoch 22 | train_loss=0.0671, train_cls=0.0629, train_contrast=1.3336, train_unc=1.7537, train_acc=0.9907 | val_loss=0.4579, val_acc=0.8791
+[INFO] Early stopping at epoch 22 (best epoch 12)
+[TEST] loss=0.3306, acc=0.9488, macro_F1=0.9545
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_confusion_matrix.png
