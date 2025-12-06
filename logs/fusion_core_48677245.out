@@ -1,0 +1,42 @@
+---------------------------------------
+Running on host: gpuk006.amarel.rutgers.edu
+CUDA visible devices: 3
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_core.yaml
+[INFO] Using seed: 42
+[DEBUG] Dataset sizes: train=431, val=215, test=215
+[INFO] Core fusion train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] Core fusion class weights (sqrt-inv): tensor([0.2615, 0.3143, 0.4243], device='cuda:0')
+Epoch 01 | train_loss=0.3290, train_cls=0.3234, train_contrast=1.7451, train_unc=1.0742, train_acc=0.6172 | val_loss=1.0356, val_acc=0.5116
+  [*] New best val_acc=0.5116, checkpoint saved.
+Epoch 02 | train_loss=0.2793, train_cls=0.2745, train_contrast=1.4968, train_unc=1.0903, train_acc=0.8469 | val_loss=0.8645, val_acc=0.7953
+  [*] New best val_acc=0.7953, checkpoint saved.
+Epoch 03 | train_loss=0.2212, train_cls=0.2164, train_contrast=1.4964, train_unc=1.1275, train_acc=0.9026 | val_loss=0.8508, val_acc=0.6419
+Epoch 04 | train_loss=0.1645, train_cls=0.1597, train_contrast=1.5004, train_unc=1.1817, train_acc=0.9443 | val_loss=0.6769, val_acc=0.7535
+Epoch 05 | train_loss=0.1377, train_cls=0.1328, train_contrast=1.5558, train_unc=1.2525, train_acc=0.9350 | val_loss=0.5364, val_acc=0.8512
+  [*] New best val_acc=0.8512, checkpoint saved.
+Epoch 06 | train_loss=0.1213, train_cls=0.1165, train_contrast=1.5030, train_unc=1.3157, train_acc=0.9350 | val_loss=1.0019, val_acc=0.5721
+Epoch 07 | train_loss=0.1009, train_cls=0.0961, train_contrast=1.4974, train_unc=1.3120, train_acc=0.9582 | val_loss=0.5442, val_acc=0.8651
+  [*] New best val_acc=0.8651, checkpoint saved.
+Epoch 08 | train_loss=0.1043, train_cls=0.0993, train_contrast=1.5831, train_unc=1.4438, train_acc=0.9374 | val_loss=0.6837, val_acc=0.7907
+Epoch 09 | train_loss=0.0968, train_cls=0.0922, train_contrast=1.4369, train_unc=1.4599, train_acc=0.9675 | val_loss=0.6121, val_acc=0.8000
+Epoch 10 | train_loss=0.0850, train_cls=0.0803, train_contrast=1.4598, train_unc=1.3821, train_acc=0.9722 | val_loss=0.5700, val_acc=0.7953
+Epoch 11 | train_loss=0.0730, train_cls=0.0686, train_contrast=1.4047, train_unc=1.3619, train_acc=0.9884 | val_loss=0.5207, val_acc=0.8744
+  [*] New best val_acc=0.8744, checkpoint saved.
+Epoch 12 | train_loss=0.0806, train_cls=0.0761, train_contrast=1.4485, train_unc=1.3714, train_acc=0.9791 | val_loss=1.4493, val_acc=0.4558
+Epoch 13 | train_loss=0.0888, train_cls=0.0840, train_contrast=1.5150, train_unc=1.3570, train_acc=0.9606 | val_loss=0.5290, val_acc=0.8698
+Epoch 14 | train_loss=0.0743, train_cls=0.0698, train_contrast=1.4294, train_unc=1.3896, train_acc=0.9861 | val_loss=1.2234, val_acc=0.4605
+Epoch 15 | train_loss=0.0805, train_cls=0.0760, train_contrast=1.4343, train_unc=1.3490, train_acc=0.9722 | val_loss=0.9562, val_acc=0.7163
+Epoch 16 | train_loss=0.0751, train_cls=0.0704, train_contrast=1.4829, train_unc=1.5366, train_acc=0.9791 | val_loss=0.9150, val_acc=0.6047
+Epoch 17 | train_loss=0.0805, train_cls=0.0760, train_contrast=1.4062, train_unc=1.4310, train_acc=0.9722 | val_loss=0.5669, val_acc=0.8372
+Epoch 18 | train_loss=0.0786, train_cls=0.0740, train_contrast=1.4629, train_unc=1.4225, train_acc=0.9861 | val_loss=0.6853, val_acc=0.7721
+Epoch 19 | train_loss=0.0725, train_cls=0.0680, train_contrast=1.4180, train_unc=1.4264, train_acc=0.9861 | val_loss=0.5903, val_acc=0.8419
+Epoch 20 | train_loss=0.0732, train_cls=0.0685, train_contrast=1.4577, train_unc=1.4221, train_acc=0.9861 | val_loss=0.5419, val_acc=0.8512
+Epoch 21 | train_loss=0.0849, train_cls=0.0803, train_contrast=1.4383, train_unc=1.4059, train_acc=0.9652 | val_loss=0.9105, val_acc=0.7395
+[INFO] Early stopping at epoch 21 (best epoch 11)
+[TEST] loss=0.5122, acc=0.8791, macro_F1=0.8886
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_results.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_confusion_matrix.png
