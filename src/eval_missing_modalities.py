@@ -141,7 +141,7 @@ def build_model(cfg, model_name: str, num_classes: int = 3):
 @torch.no_grad()
 def eval_scenario(model, data_loader, num_classes: int, scenario: str):
     """
-    scenario in {"full", "rgb_missing", "depth_missing"}.
+    scenario in {"rgb_missing", "depth_missing"}.
     - "rgb_missing": zero out RGB
     - "depth_missing": zero out depth
     """
@@ -158,8 +158,6 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
             rgb = torch.zeros_like(rgb)
         elif scenario == "depth_missing":
             depth = torch.zeros_like(depth)
-        elif scenario == "full":
-            pass
         else:
             raise ValueError(f"Unknown scenario: {scenario}")
 
@@ -210,13 +208,13 @@ def plot_missing_modality_bar(results, out_path: Path):
     """
     results: dict like:
         {
-          "attention": {"full": {...}, "rgb_missing": {...}, "depth_missing": {...}},
-          "core":      {"full": {...}, "rgb_missing": {...}, "depth_missing": {...}}
+          "attention": {"rgb_missing": {...}, "depth_missing": {...}},
+          "core":      {"rgb_missing": {...}, "depth_missing": {...}}
         }
     """
     models = ["attention", "core"]
-    scenarios = ["full", "rgb_missing", "depth_missing"]
-    x_labels = ["Full", "RGB missing", "Depth missing"]
+    scenarios = ["rgb_missing", "depth_missing"]
+    x_labels = ["RGB missing", "Depth missing"]
 
     x = np.arange(len(scenarios))
     width = 0.35
