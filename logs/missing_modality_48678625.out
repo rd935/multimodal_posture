@@ -1,0 +1,33 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 1
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: /cache/home/rd935/multimodal_posture/config/fusion_core.yaml
+
+=================================
+[INFO] Evaluating model: attention
+=================================
+[INFO] Loading ATTENTION checkpoint: /cache/home/rd935/multimodal_posture/checkpoints/fusion_attention/fusion_attention_best.pt
+
+[SCENARIO] attention - rgb_missing
+  acc=0.1860, macro_F1=0.1046
+
+[SCENARIO] attention - depth_missing
+  acc=0.6651, macro_F1=0.5740
+
+=================================
+[INFO] Evaluating model: core
+=================================
+[INFO] Loading CORE main checkpoint: /cache/home/rd935/multimodal_posture/checkpoints/fusion_core/fusion_core_best.pt
+
+[SCENARIO] core - rgb_missing
+  acc=0.8372, macro_F1=0.8363
+
+[SCENARIO] core - depth_missing
+  acc=0.8093, macro_F1=0.8251
+
+[INFO] Saved missing-modality results to /cache/home/rd935/multimodal_posture/results/missing_modalities/missing_modality_results.json
+[INFO] Saved missing-modality bar plot to /cache/home/rd935/multimodal_posture/results/missing_modalities/missing_modality_accuracy.png

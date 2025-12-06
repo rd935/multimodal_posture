@@ -40,4 +40,4 @@ loss:
   attn_entropy_weight: 0.0005
 
   # TRAINING-ONLY: randomly drop one modality to learn robustness
-  modality_dropout_prob: 0.1
+  modality_dropout_prob: 0

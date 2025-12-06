@@ -1,0 +1,24 @@
+---------------------------------------
+Running on host: gpuk005.amarel.rutgers.edu
+CUDA visible devices: 0
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: /cache/home/rd935/multimodal_posture/config/fusion_core.yaml
+
+============================
+[INFO] Evaluating model: attention
+============================
+[INFO] Loading ATTENTION checkpoint: /cache/home/rd935/multimodal_posture/checkpoints/fusion_attention/fusion_attention_best.pt
+[ATTENTION] test_acc = 0.9349, ECE = 0.0659
+[ATTENTION] reliability diagram saved to: /cache/home/rd935/multimodal_posture/results/calibration/reliability_attention.png
+
+============================
+[INFO] Evaluating model: core
+============================
+[INFO] Loading CORE main checkpoint: /cache/home/rd935/multimodal_posture/checkpoints/fusion_core/fusion_core_best.pt
+[CORE] test_acc = 0.9488, ECE = 0.0420
+[CORE] reliability diagram saved to: /cache/home/rd935/multimodal_posture/results/calibration/reliability_core.png
+
+[INFO] Saved ECE comparison to /cache/home/rd935/multimodal_posture/results/calibration/ece_results.json
