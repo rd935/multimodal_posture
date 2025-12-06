@@ -94,7 +94,7 @@ def train_one_epoch_core(
 
         optimizer.zero_grad()
 
-        # We need embeddings + attention, no uncertainty yet
+        # Stage-1: embeddings + attention, no uncertainty yet
         logits, extras = model(
             rgb,
             depth,
@@ -146,7 +146,14 @@ def evaluate_with_attention_core(
     data_loader,
     criterion,
     num_classes: int,
+    use_uncertainty: bool = False,   # <-- NEW: toggle uncertainty usage
 ):
+    """
+    Generic evaluation helper.
+
+    - use_uncertainty=False: Stage-1 behavior (no uncertainty heads)
+    - use_uncertainty=True:  Stage-2 behavior (uncertainty-aware fusion)
+    """
     model.eval()
     total_loss = 0.0
     total_correct = 0
@@ -167,8 +174,8 @@ def evaluate_with_attention_core(
                 rgb,
                 depth,
                 return_embeddings=False,
-                return_attention=True,
-                return_uncertainty=False,
+                return_attention=True,          # still collect attention for plots
+                return_uncertainty=use_uncertainty,
             )
 
             loss = criterion(logits, labels)
@@ -232,7 +239,7 @@ def finetune_uncertainty(
     """
     print("[INFO] Starting uncertainty fine-tuning stage...")
 
-    # Stage-2 CE: no class weights, tiny label smoothing to help generalization
+    # Stage-2 CE: no class weights, no label smoothing
     stage2_criterion = nn.CrossEntropyLoss(
         weight=None,
         label_smoothing=0.0,
@@ -257,7 +264,7 @@ def finetune_uncertainty(
 
     optimizer = Adam(
         trainable_params,
-        lr=finetune_lr,      # e.g. 5e-5
+        lr=finetune_lr,
         weight_decay=0.0,
     )
 
@@ -285,7 +292,7 @@ def finetune_uncertainty(
                 depth,
                 return_embeddings=True,
                 return_attention=False,
-                return_uncertainty=True,
+                return_uncertainty=True,   # <-- Stage-2 uses uncertainty-aware fusion
             )
 
             ce_per_sample = stage2_criterion(logits, labels)  # (B,)
@@ -296,13 +303,14 @@ def finetune_uncertainty(
             var_rgb = log_var_rgb.exp()
             var_depth = log_var_depth.exp()
 
-            inv_var_rgb = torch.exp(-log_var_rgb)
-            inv_var_depth = torch.exp(-log_var_depth)
+            # (you can drop inv_var_* if unused)
+            # inv_var_rgb = torch.exp(-log_var_rgb)
+            # inv_var_depth = torch.exp(-log_var_depth)
 
-            # --- NEW: don't reweight CE by rel_eff, just use standard CE ---
+            # standard CE
             cls_loss = ce_per_sample.mean()
 
-            # keep the variance regularizer small (you already set w_uncertainty_reg tiny)
+            # variance regularizer
             unc_reg = 0.5 * (var_rgb + var_depth).mean()
 
             loss = cls_loss + w_uncertainty_reg * unc_reg
@@ -321,11 +329,13 @@ def finetune_uncertainty(
         train_loss = total_loss / total_samples
         train_acc = total_correct / total_samples
 
+        # IMPORTANT: validate with uncertainty behavior ON
         val_loss, val_acc, *_ = evaluate_with_attention_core(
             model,
             val_loader,
             eval_criterion,
             num_classes,
+            use_uncertainty=True,
         )
 
         print(
@@ -556,6 +566,7 @@ def main():
         "val_acc": [],
     }
 
+    # -------- Stage-1 training --------
     for epoch in range(1, epochs + 1):
         train_loss, train_cls_loss, train_contrast_loss, train_acc = train_one_epoch_core(
             model,
@@ -567,8 +578,9 @@ def main():
             w_attn_entropy=w_attn_entropy,
         )
 
+        # Stage-1 validation: no uncertainty
         val_loss, val_acc, _, _, _, _, _ = evaluate_with_attention_core(
-            model, val_loader, eval_criterion, num_classes
+            model, val_loader, eval_criterion, num_classes, use_uncertainty=False
         )
 
         history["epoch"].append(epoch)
@@ -600,7 +612,7 @@ def main():
 
     # --- after Stage-1 training loop ---
     best_ckpt_stage1 = ckpt_dir / "fusion_core_best.pt"
-    best_val_acc_stage1 = best_val_acc  # you were already tracking this
+    best_val_acc_stage1 = best_val_acc
 
     # Make sure Stage-2 starts from the best Stage-1 weights
     model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
@@ -622,7 +634,7 @@ def main():
 
     best_ckpt_stage2 = ckpt_dir / "fusion_core_best_ft.pt"
 
-    # 1) Always evaluate Stage-1 checkpoint on test
+    # -------- Stage-1 test (no uncertainty) --------
     model.load_state_dict(torch.load(best_ckpt_stage1, map_location=DEVICE))
     (
         test_loss_s1,
@@ -632,7 +644,13 @@ def main():
         test_labels_s1,
         mean_modality_attention_s1,
         mean_att_per_class_s1,
-    ) = evaluate_with_attention_core(model, test_loader, eval_criterion, num_classes)
+    ) = evaluate_with_attention_core(
+        model,
+        test_loader,
+        eval_criterion,
+        num_classes,
+        use_uncertainty=False,
+    )
     f1_s1 = f1_score(test_labels_s1, test_preds_s1, average="macro")
 
     print(f"[TEST - Stage1 only] loss={test_loss_s1:.4f}, acc={test_acc_s1:.4f}, macro_F1={f1_s1:.4f}")
@@ -647,7 +665,7 @@ def main():
     mean_att_per_class = mean_att_per_class_s1
     final_stage = "stage1"
 
-    # 2) If Stage-2 checkpoint exists, evaluate that separately too
+    # -------- Stage-2 test (uncertainty ON) --------
     if best_ckpt_stage2.exists():
         model.load_state_dict(torch.load(best_ckpt_stage2, map_location=DEVICE))
         (
@@ -658,12 +676,17 @@ def main():
             test_labels_s2,
             mean_modality_attention_s2,
             mean_att_per_class_s2,
-        ) = evaluate_with_attention_core(model, test_loader, eval_criterion, num_classes)
+        ) = evaluate_with_attention_core(
+            model,
+            test_loader,
+            eval_criterion,
+            num_classes,
+            use_uncertainty=True,
+        )
         f1_s2 = f1_score(test_labels_s2, test_preds_s2, average="macro")
 
         print(f"[TEST - Stage2 only] loss={test_loss_s2:.4f}, acc={test_acc_s2:.4f}, macro_F1={f1_s2:.4f}")
 
-        # 3) Pick whichever test acc is higher for reporting
         if test_acc_s2 >= test_acc_s1:
             print("[INFO] Using Stage-2 checkpoint as final core model (better or equal test acc).")
             final_loss = test_loss_s2
@@ -679,7 +702,6 @@ def main():
             print("[INFO] Using Stage-1 checkpoint as final core model (better test acc).")
     else:
         print("[INFO] No Stage-2 checkpoint found; using Stage-1 only.")
-
 
     results = {
         "modality": "rgb+depth",

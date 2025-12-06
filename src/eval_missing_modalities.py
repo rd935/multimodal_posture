@@ -1,5 +1,3 @@
-# src/eval_missing_modalities.py
-
 import sys
 import yaml
 import json
@@ -27,7 +25,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =========================================================
-#   Checkpoint loading
+#   Checkpoint loading (same layout as in compute_ece.py)
 # =========================================================
 def load_checkpoint(model, model_name: str):
     ckpt_root = PROJECT_ROOT / "checkpoints"
@@ -165,26 +163,25 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
         else:
             raise ValueError(f"Unknown scenario: {scenario}")
 
-        # ---- call model with proper arguments, but handle outputs generically ----
+        # For core fusion, we can safely request uncertainty outputs.
+        # This does NOT change logits; it just populates extras.
         if isinstance(model, MultimodalRGBDCoreFusion):
             out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
                 return_attention=False,
-                return_uncertainty=False,
+                return_uncertainty=True,
             )
-        elif isinstance(model, MultimodalRGBDAttentionFusion):
+        else:
+            # Attention baseline: no uncertainty flag
             out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
-                return_attention=True,
+                return_attention=False,
             )
-        else:
-            out = model(rgb, depth)
 
-        # out might be logits OR (logits, extras) OR (logits, extras, ...)
         if isinstance(out, tuple):
             logits = out[0]
         else:
@@ -214,7 +211,7 @@ def plot_missing_modality_bar(results, out_path: Path):
     results: dict like:
         {
           "attention": {"full": {...}, "rgb_missing": {...}, "depth_missing": {...}},
-          "core": {...}
+          "core":      {"full": {...}, "rgb_missing": {...}, "depth_missing": {...}}
         }
     """
     models = ["attention", "core"]

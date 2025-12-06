@@ -1,5 +1,3 @@
-# src/compute_ece.py
-
 import sys
 import yaml
 import torch
@@ -24,7 +22,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =========================================================
-#   Checkpoint loading
+#   Checkpoint loading (fixed to your directory layout)
 # =========================================================
 def load_checkpoint(model, model_name: str):
     """
@@ -226,7 +224,7 @@ def plot_reliability(bin_centers, accs, confs, model_name: str, out_path: Path):
 # =========================================================
 #   Inference utils
 # =========================================================
-@torch.no_grad()
+@torch.no_grad__()
 def gather_probs_and_labels(model, data_loader, num_classes: int):
     all_probs = []
     all_labels = []
@@ -237,24 +235,22 @@ def gather_probs_and_labels(model, data_loader, num_classes: int):
         depth = batch["depth"].to(DEVICE)
         labels = batch["label"].to(DEVICE)
 
-        # Different arg signatures; handle outputs generically.
+        # For core fusion, we can safely request uncertainty outputs.
         if isinstance(model, MultimodalRGBDCoreFusion):
             out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
                 return_attention=False,
-                return_uncertainty=False,
+                return_uncertainty=True,
             )
-        elif isinstance(model, MultimodalRGBDAttentionFusion):
+        else:
             out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
-                return_attention=True,
+                return_attention=False,
             )
-        else:
-            out = model(rgb, depth)
 
         if isinstance(out, tuple):
             logits = out[0]
