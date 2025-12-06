@@ -256,7 +256,7 @@ def main():
     num_classes = 3
     class_names = ["stable", "unstable", "falling"]
 
-    scenarios = ["full", "rgb_missing", "depth_missing"]
+    scenarios = ["rgb_missing", "depth_missing"]
 
     all_results = {}
     for model_name in ["attention", "core"]:
