@@ -165,13 +165,25 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
         else:
             raise ValueError(f"Unknown scenario: {scenario}")
 
-        logits, _ = model(
-            rgb,
-            depth,
-            return_embeddings=False,
-            return_attention=False,
-            return_uncertainty=False,
-        )
+        # ---- call model with proper signature per type ----
+        if isinstance(model, MultimodalRGBDCoreFusion):
+            logits, _ = model(
+                rgb,
+                depth,
+                return_embeddings=False,
+                return_attention=False,
+                return_uncertainty=False,
+            )
+        elif isinstance(model, MultimodalRGBDAttentionFusion):
+            logits, _ = model(
+                rgb,
+                depth,
+                return_embeddings=False,
+                return_attention=True,
+            )
+        else:
+            # fallback, in case you ever plug in a different model
+            logits = model(rgb, depth)
 
         preds = logits.argmax(dim=1)
         all_preds.append(preds.cpu())
@@ -204,7 +216,6 @@ def plot_missing_modality_bar(results, out_path: Path):
     scenarios = ["full", "rgb_missing", "depth_missing"]
     x_labels = ["Full", "RGB missing", "Depth missing"]
 
-    # bar positions
     x = np.arange(len(scenarios))
     width = 0.35
 

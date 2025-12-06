@@ -165,7 +165,6 @@ def expected_calibration_error(probs, labels, n_bins: int = 15):
         start = bin_edges[i]
         end = bin_edges[i + 1]
         if i == n_bins - 1:
-            # include right edge in last bin
             in_bin = (confidences >= start) & (confidences <= end)
         else:
             in_bin = (confidences >= start) & (confidences < end)
@@ -238,14 +237,25 @@ def gather_probs_and_labels(model, data_loader, num_classes: int):
         depth = batch["depth"].to(DEVICE)
         labels = batch["label"].to(DEVICE)
 
-        # no attention / uncertainty needed for calibration
-        logits, _ = model(
-            rgb,
-            depth,
-            return_embeddings=False,
-            return_attention=False,
-            return_uncertainty=False,
-        )
+        # no attention / uncertainty needed for calibration, but
+        # the forward signatures differ for core vs attention
+        if isinstance(model, MultimodalRGBDCoreFusion):
+            logits, _ = model(
+                rgb,
+                depth,
+                return_embeddings=False,
+                return_attention=False,
+                return_uncertainty=False,
+            )
+        elif isinstance(model, MultimodalRGBDAttentionFusion):
+            logits, _ = model(
+                rgb,
+                depth,
+                return_embeddings=False,
+                return_attention=True,
+            )
+        else:
+            logits = model(rgb, depth)
 
         probs = torch.softmax(logits, dim=-1)
         all_probs.append(probs.cpu())
