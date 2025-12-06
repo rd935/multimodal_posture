@@ -24,7 +24,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =========================================================
-#   Checkpoint loading (fixed to your directory layout)
+#   Checkpoint loading
 # =========================================================
 def load_checkpoint(model, model_name: str):
     """
@@ -237,10 +237,9 @@ def gather_probs_and_labels(model, data_loader, num_classes: int):
         depth = batch["depth"].to(DEVICE)
         labels = batch["label"].to(DEVICE)
 
-        # no attention / uncertainty needed for calibration, but
-        # the forward signatures differ for core vs attention
+        # Different arg signatures; handle outputs generically.
         if isinstance(model, MultimodalRGBDCoreFusion):
-            logits, _ = model(
+            out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
@@ -248,14 +247,19 @@ def gather_probs_and_labels(model, data_loader, num_classes: int):
                 return_uncertainty=False,
             )
         elif isinstance(model, MultimodalRGBDAttentionFusion):
-            logits, _ = model(
+            out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
                 return_attention=True,
             )
         else:
-            logits = model(rgb, depth)
+            out = model(rgb, depth)
+
+        if isinstance(out, tuple):
+            logits = out[0]
+        else:
+            logits = out
 
         probs = torch.softmax(logits, dim=-1)
         all_probs.append(probs.cpu())
@@ -295,7 +299,6 @@ def main():
         model = build_model(cfg, model_name=model_name, num_classes=num_classes)
         probs, labels = gather_probs_and_labels(model, test_loader, num_classes)
 
-        # metrics
         preds = probs.argmax(axis=1)
         acc = float(accuracy_score(labels, preds))
         ece = expected_calibration_error(probs, labels, n_bins=15)

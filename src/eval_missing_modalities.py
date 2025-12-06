@@ -27,7 +27,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =========================================================
-#   Checkpoint loading (same layout as in compute_ece.py)
+#   Checkpoint loading
 # =========================================================
 def load_checkpoint(model, model_name: str):
     ckpt_root = PROJECT_ROOT / "checkpoints"
@@ -165,9 +165,9 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
         else:
             raise ValueError(f"Unknown scenario: {scenario}")
 
-        # ---- call model with proper signature per type ----
+        # ---- call model with proper arguments, but handle outputs generically ----
         if isinstance(model, MultimodalRGBDCoreFusion):
-            logits, _ = model(
+            out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
@@ -175,15 +175,20 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
                 return_uncertainty=False,
             )
         elif isinstance(model, MultimodalRGBDAttentionFusion):
-            logits, _ = model(
+            out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
                 return_attention=True,
             )
         else:
-            # fallback, in case you ever plug in a different model
-            logits = model(rgb, depth)
+            out = model(rgb, depth)
+
+        # out might be logits OR (logits, extras) OR (logits, extras, ...)
+        if isinstance(out, tuple):
+            logits = out[0]
+        else:
+            logits = out
 
         preds = logits.argmax(dim=1)
         all_preds.append(preds.cpu())
