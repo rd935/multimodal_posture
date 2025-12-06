@@ -33,14 +33,10 @@ def load_checkpoint(model, model_name: str):
     if model_name == "core":
         ckpt_dir = ckpt_root / "fusion_core"
         ckpt_main = ckpt_dir / "fusion_core_best.pt"
-        ckpt_ft = ckpt_dir / "fusion_core_best_ft.pt"
 
         if ckpt_main.exists():
             ckpt_path = ckpt_main
             print(f"[INFO] Loading CORE main checkpoint: {ckpt_path}")
-        elif ckpt_ft.exists():
-            ckpt_path = ckpt_ft
-            print(f"[INFO] Loading CORE fine-tuned checkpoint (legacy): {ckpt_path}")
         else:
             raise FileNotFoundError(
                 "No core fusion checkpoint found in checkpoints/fusion_core/ "
