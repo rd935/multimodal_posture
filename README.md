@@ -39,26 +39,38 @@ The primary objective is demonstrating that **Core Fusion exceeds Attention Fusi
 multimodal_posture/
 │
 ├── config/
+|   ├── depth_baseline.yaml
 │   ├── fusion_core.yaml
 │   ├── fusion_attention.yaml
-│   └── fusion_early.yaml
+│   ├── fusion_early.yaml
+|   └── rgb_baseline.yaml
 │
 ├── checkpoints/
+│   ├── depth_baseline/
+│   │   └──  depth_baseline_best.pt
 │   ├── fusion_core/
-│   │   ├── fusion_core_best.pt
-│   │   └── fusion_core_best2.pt
+│   │   └──  fusion_core_best.pt
 │   ├── fusion_attention/
 │   │   └── fusion_attention_best.pt
-│   └── fusion_early/
-│       └── fusion_early_best.pt
+│   ├── fusion_early/
+│   |   └── fusion_early_best.pt
+│   └── rgb_baseline/
+│       └──  rgb_baseline_best.pt
 │
+├── data /
+│   └── utd_mhad/ (train/val/test CSV splits)
+|
 ├── datasets/
 │   ├── dataloaders.py
-│   └── utd_mhad/ (train/val/test CSV splits)
+|   └── utd_mhad_rgbd.py
+│
+├── logs/
+│   └── (all slurm script results)
 │
 ├── models/
+│   ├── rgb_depth_baselines.py (RGB, Depth Baselines)
 │   └── multimodal_rgbd.py
-│       (RGB baseline, Depth baseline, Early Fusion,
+│       (Early Fusion,
 │        Attention Fusion, Core Fusion)
 │
 ├── src/
@@ -69,11 +81,26 @@ multimodal_posture/
 │   ├── train_fusion_core.py
 │   ├── compute_ece.py
 │   └── eval_missing_modalities.py
+|
+├── scripts/
+│   ├── check_dataset.py
+│   ├── make_index.py
+│   ├── make_splits.py
+│   ├── run_all_fusions.ps1
+│   ├── test_fusion_models.py
+│   └── test_labels.py
 │
-└── results/
-    ├── calibration/
-    ├── missing_modalities/
-    └── fusion_core/
+├── results/
+|   ├── calibration/
+|   ├── missing_modalities/
+|   ├── fusion_attention/
+|   ├── fusion_early/
+|   ├── fusion_core/
+|   ├── rgb_baseline/
+|   └── depth_baseline/
+|
+└── (slurm scripts for all the models)
+    
 ```
 
 ---
@@ -140,22 +167,22 @@ pip install torch torchvision torchaudio matplotlib scikit-learn pyyaml
 
 ### RGB-only  
 ```
-python src/train_rgb.py
+python src/train_baseline_rgb.py config/rgb_baseline.yaml
 ```
 
 ### Depth-only  
 ```
-python src/train_depth.py
+python src/train_baseline_depth.py config/depth_baseline.yaml
 ```
 
 ### Early Fusion  
 ```
-python src/train_fusion_early.py
+python src/train_fusion_early.py config/fusion_early.yaml
 ```
 
 ### Attention Fusion  
 ```
-python src/train_fusion_attention.py
+python src/train_fusion_attention.py config/fusion_attention.yaml
 ```
 
 ### Core Fusion  
@@ -165,8 +192,10 @@ python src/train_fusion_core.py config/fusion_core.yaml
 
 Best checkpoint saved to:  
 ```
-checkpoints/fusion_core/fusion_core_best.pt
+checkpoints/fusion_{}/fusion_{}_best.pt
 ```
+
+**Note:** All the models have their own individual slurm scripts to train remotely.
 
 ---
 
@@ -177,7 +206,7 @@ checkpoints/fusion_core/fusion_core_best.pt
 Saved to:
 
 ```
-results/fusion_core/fusion_core_results.json
+results/fusion_{}/fusion_{}_results.json
 ```
 
 Includes:
@@ -196,11 +225,10 @@ Run:
 python src/eval_missing_modalities.py
 ```
 
-Outputs:
+Outputs to:
 
 ```
-results/missing_modalities/missing_modality_results.json
-results/missing_modalities/missing_modality_accuracy.png
+results/missing_modalities/
 ```
 
 ---
