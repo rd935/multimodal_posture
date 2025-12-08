@@ -237,5 +237,3 @@ results/calibration/
 [4] SimCLR/InfoNCE Contrastive Loss (Chen et al., 2020)
 
 ---
-
-# End of README
