@@ -19,6 +19,7 @@ from datasets.dataloaders import make_utd_mhad_loaders
 from models.multimodal_rgbd import (
     MultimodalRGBDCoreFusion,
     MultimodalRGBDAttentionFusion,
+    MultimodalRGBDEarlyFusion,
 )
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -32,7 +33,8 @@ def load_checkpoint(model, model_name: str):
 
     if model_name == "core":
         ckpt_dir = ckpt_root / "fusion_core"
-        ckpt_main = ckpt_dir / "fusion_core_best.pt"
+        # you said this run is saved as fusion_core_best2.pt
+        ckpt_main = ckpt_dir / "fusion_core_best2.pt"
 
         if ckpt_main.exists():
             ckpt_path = ckpt_main
@@ -40,7 +42,7 @@ def load_checkpoint(model, model_name: str):
         else:
             raise FileNotFoundError(
                 "No core fusion checkpoint found in checkpoints/fusion_core/ "
-                "(expected fusion_core_best.pt or fusion_core_best_ft.pt)"
+                "(expected fusion_core_best2.pt)"
             )
 
     elif model_name == "attention":
@@ -52,6 +54,16 @@ def load_checkpoint(model, model_name: str):
                 "checkpoints/fusion_attention/fusion_attention_best.pt not found."
             )
         print(f"[INFO] Loading ATTENTION checkpoint: {ckpt_path}")
+
+    elif model_name == "early":
+        ckpt_dir = ckpt_root / "fusion_early"
+        ckpt_path = ckpt_dir / "fusion_early_best.pt"
+        if not ckpt_path.exists():
+            raise FileNotFoundError(
+                "Expected early fusion checkpoint "
+                "checkpoints/fusion_early/fusion_early_best.pt not found."
+            )
+        print(f"[INFO] Loading EARLY checkpoint: {ckpt_path}")
 
     else:
         raise ValueError(f"Invalid model_name: {model_name}")
@@ -114,6 +126,7 @@ def build_model(cfg, model_name: str, num_classes: int = 3):
             freeze_backbone=freeze_backbone,
             contrastive_temperature=contrastive_temperature,
         ).to(DEVICE)
+
     elif model_name == "attention":
         model = MultimodalRGBDAttentionFusion(
             num_classes=num_classes,
@@ -124,6 +137,16 @@ def build_model(cfg, model_name: str, num_classes: int = 3):
             normalize_embeddings=normalize_embeddings,
             freeze_backbone=freeze_backbone,
         ).to(DEVICE)
+
+    elif model_name == "early":
+        model = MultimodalRGBDEarlyFusion(
+            num_classes=num_classes,
+            embed_dim=embed_dim,
+            fusion_hidden_dim=fusion_hidden_dim,
+            pretrained=pretrained,
+            normalize_embeddings=normalize_embeddings,
+        ).to(DEVICE)
+
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
 
@@ -158,7 +181,6 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
             raise ValueError(f"Unknown scenario: {scenario}")
 
         # For core fusion, we can safely request uncertainty outputs.
-        # This does NOT change logits; it just populates extras.
         if isinstance(model, MultimodalRGBDCoreFusion):
             out = model(
                 rgb,
@@ -167,13 +189,19 @@ def eval_scenario(model, data_loader, num_classes: int, scenario: str):
                 return_attention=False,
                 return_uncertainty=True,
             )
-        else:
-            # Attention baseline: no uncertainty flag
+        elif isinstance(model, MultimodalRGBDAttentionFusion):
             out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
                 return_attention=False,
+            )
+        else:
+            # early fusion (or any other that just returns logits)
+            out = model(
+                rgb,
+                depth,
+                return_embeddings=False,
             )
 
         if isinstance(out, tuple):
@@ -204,23 +232,26 @@ def plot_missing_modality_bar(results, out_path: Path):
     """
     results: dict like:
         {
+          "early":     {"rgb_missing": {...}, "depth_missing": {...}},
           "attention": {"rgb_missing": {...}, "depth_missing": {...}},
           "core":      {"rgb_missing": {...}, "depth_missing": {...}}
         }
     """
-    models = ["attention", "core"]
+    models = ["early", "attention", "core"]
     scenarios = ["rgb_missing", "depth_missing"]
     x_labels = ["RGB missing", "Depth missing"]
 
     x = np.arange(len(scenarios))
-    width = 0.35
+    width = 0.25
 
+    acc_early = [results["early"][s]["acc"] for s in scenarios]
     acc_att = [results["attention"][s]["acc"] for s in scenarios]
     acc_core = [results["core"][s]["acc"] for s in scenarios]
 
-    plt.figure(figsize=(6, 4))
-    plt.bar(x - width / 2, acc_att, width, label="Attention")
-    plt.bar(x + width / 2, acc_core, width, label="Core")
+    plt.figure(figsize=(7, 4))
+    plt.bar(x - width, acc_early, width, label="Early")
+    plt.bar(x, acc_att, width, label="Attention")
+    plt.bar(x + width, acc_core, width, label="Core")
 
     plt.xticks(x, x_labels)
     plt.ylabel("Accuracy")
@@ -253,7 +284,7 @@ def main():
     scenarios = ["rgb_missing", "depth_missing"]
 
     all_results = {}
-    for model_name in ["attention", "core"]:
+    for model_name in ["early", "attention", "core"]:
         print(f"\n=================================")
         print(f"[INFO] Evaluating model: {model_name}")
         print("=================================")
@@ -275,7 +306,7 @@ def main():
     # Save JSON
     out_dir = PROJECT_ROOT / "results" / "missing_modalities"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_json = out_dir / "missing_modality_results.json"
+    out_json = out_dir / "missing_modalities_early_att_core.json"
     with open(out_json, "w") as f:
         json.dump(
             {

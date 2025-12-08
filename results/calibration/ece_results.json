@@ -1,14 +1,19 @@
 {
-  "config_path": "/cache/home/rd935/multimodal_posture/config/fusion_core.yaml",
+  "config_path": "C:\\Users\\ritwi\\multimodal_posture\\config\\fusion_core.yaml",
   "results": {
+    "early": {
+      "acc": 0.8837209302325582,
+      "ece": 0.28837856276090756,
+      "num_samples": 215
+    },
     "attention": {
       "acc": 0.9348837209302325,
-      "ece": 0.06588263511657716,
+      "ece": 0.06587038261945859,
       "num_samples": 215
     },
     "core": {
       "acc": 0.9488372093023256,
-      "ece": 0.04202743047891663,
+      "ece": 0.039484819423320695,
       "num_samples": 215
     }
   }

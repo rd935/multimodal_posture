@@ -17,26 +17,30 @@ from datasets.dataloaders import make_utd_mhad_loaders
 from models.multimodal_rgbd import (
     MultimodalRGBDCoreFusion,
     MultimodalRGBDAttentionFusion,
+    MultimodalRGBDEarlyFusion,
 )
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =========================================================
-#   Checkpoint loading (fixed to prefer new unified core)
+#   Checkpoint loading (prefer unified core)
 # =========================================================
 def load_checkpoint(model, model_name: str):
     """
-    model_name in {"core", "attention"}.
+    model_name in {"early", "attention", "core"}.
 
     Expected layout (under PROJECT_ROOT/checkpoints):
 
-        fusion_core/
-            fusion_core_best.pt        # <-- preferred (new unified core)
-            fusion_core_best_ft.pt     # legacy fine-tuned core (fallback)
+        fusion_early/
+            fusion_early_best.pt
 
         fusion_attention/
             fusion_attention_best.pt
+
+        fusion_core/
+            fusion_core_best.pt        # preferred (new unified core)
+            fusion_core_best_ft.pt     # legacy fine-tuned core (fallback)
     """
     ckpt_root = PROJECT_ROOT / "checkpoints"
 
@@ -47,10 +51,10 @@ def load_checkpoint(model, model_name: str):
 
         if ckpt_main.exists():
             ckpt_path = ckpt_main
-            print(f"[INFO] Loading CORE main checkpoint: {ckpt_path}")
+            print(f"[INFO] Loading CORE checkpoint: {ckpt_path}")
         elif ckpt_ft.exists():
             ckpt_path = ckpt_ft
-            print(f"[INFO] Loading CORE fine-tuned checkpoint (legacy): {ckpt_path}")
+            print(f"[INFO] Loading legacy CORE fine-tuned checkpoint: {ckpt_path}")
         else:
             raise FileNotFoundError(
                 "No core fusion checkpoint found in checkpoints/fusion_core/ "
@@ -66,6 +70,16 @@ def load_checkpoint(model, model_name: str):
                 "checkpoints/fusion_attention/fusion_attention_best.pt not found."
             )
         print(f"[INFO] Loading ATTENTION checkpoint: {ckpt_path}")
+
+    elif model_name == "early":
+        ckpt_dir = ckpt_root / "fusion_early"
+        ckpt_path = ckpt_dir / "fusion_early_best.pt"
+        if not ckpt_path.exists():
+            raise FileNotFoundError(
+                "Expected early fusion checkpoint "
+                "checkpoints/fusion_early/fusion_early_best.pt not found."
+            )
+        print(f"[INFO] Loading EARLY checkpoint: {ckpt_path}")
 
     else:
         raise ValueError(f"Invalid model_name: {model_name}")
@@ -128,6 +142,7 @@ def build_model(cfg, model_name: str, num_classes: int = 3):
             freeze_backbone=freeze_backbone,
             contrastive_temperature=contrastive_temperature,
         ).to(DEVICE)
+
     elif model_name == "attention":
         model = MultimodalRGBDAttentionFusion(
             num_classes=num_classes,
@@ -138,6 +153,18 @@ def build_model(cfg, model_name: str, num_classes: int = 3):
             normalize_embeddings=normalize_embeddings,
             freeze_backbone=freeze_backbone,
         ).to(DEVICE)
+
+    elif model_name == "early":
+        # IMPORTANT: use the EARLY FUSION architecture here,
+        # not the attention model
+        model = MultimodalRGBDEarlyFusion(
+            num_classes=num_classes,
+            embed_dim=embed_dim,
+            fusion_hidden_dim=fusion_hidden_dim,
+            pretrained=pretrained,
+            normalize_embeddings=normalize_embeddings,
+        ).to(DEVICE)
+
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
 
@@ -211,15 +238,19 @@ def reliability_diagram(probs, labels, n_bins: int = 15):
 
 def plot_reliability(bin_centers, accs, confs, model_name: str, out_path: Path):
     plt.figure(figsize=(5, 5))
-    plt.plot([0, 1], [0, 1])  # perfect calibration line
-    plt.plot(confs, accs, marker="o")
+    # perfect calibration line
+    plt.plot([0, 1], [0, 1], linestyle="--", label="Perfect calibration")
+    # model curve
+    plt.plot(confs, accs, marker="o", label=f"{model_name} model")
     plt.xlabel("Confidence")
     plt.ylabel("Accuracy")
     plt.title(f"Reliability Diagram - {model_name}")
+    plt.legend(loc="upper left")  # or loc="best"
     plt.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path)
     plt.close()
+
 
 
 # =========================================================
@@ -245,12 +276,19 @@ def gather_probs_and_labels(model, data_loader, num_classes: int):
                 return_attention=False,
                 return_uncertainty=True,
             )
-        else:
+        elif isinstance(model, MultimodalRGBDAttentionFusion):
             out = model(
                 rgb,
                 depth,
                 return_embeddings=False,
                 return_attention=False,
+            )
+        else:
+            # Early fusion or others that only return logits
+            out = model(
+                rgb,
+                depth,
+                return_embeddings=False,
             )
 
         if isinstance(out, tuple):
@@ -288,7 +326,7 @@ def main():
     out_dir = PROJECT_ROOT / "results" / "calibration"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    for model_name in ["attention", "core"]:
+    for model_name in ["early", "attention", "core"]:
         print(f"\n============================")
         print(f"[INFO] Evaluating model: {model_name}")
         print("============================")

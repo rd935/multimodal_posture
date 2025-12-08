@@ -1,11 +1,57 @@
 {
-  "config_path": "/cache/home/rd935/multimodal_posture/config/fusion_core.yaml",
+  "config_path": "C:\\Users\\ritwi\\multimodal_posture\\config\\fusion_core.yaml",
   "class_names": [
     "stable",
     "unstable",
     "falling"
   ],
   "results": {
+    "early": {
+      "rgb_missing": {
+        "acc": 0.7302325581395349,
+        "f1_macro": 0.5846438459914827,
+        "confusion_matrix": [
+          [
+            94,
+            9,
+            0
+          ],
+          [
+            12,
+            59,
+            1
+          ],
+          [
+            19,
+            17,
+            4
+          ]
+        ],
+        "num_samples": 215
+      },
+      "depth_missing": {
+        "acc": 0.6186046511627907,
+        "f1_macro": 0.5241402116402116,
+        "confusion_matrix": [
+          [
+            103,
+            0,
+            0
+          ],
+          [
+            72,
+            0,
+            0
+          ],
+          [
+            10,
+            0,
+            30
+          ]
+        ],
+        "num_samples": 215
+      }
+    },
     "attention": {
       "rgb_missing": {
         "acc": 0.18604651162790697,
