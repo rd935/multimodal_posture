@@ -243,7 +243,7 @@ def main():
             best_val_acc = val_acc
             best_epoch = epoch
             epochs_no_improve = 0
-            torch.save(model.state_dict(), ckpt_dir / "depth_baseline_best_seed{seed}.pt")
+            torch.save(model.state_dict(), ckpt_dir / f"depth_baseline_best_seed{seed}.pt")
             print(f"  [*] New best val_acc={val_acc:.4f}, checkpoint saved.")
         else:
             epochs_no_improve += 1
@@ -251,7 +251,7 @@ def main():
                 print(f"[INFO] Early stopping at epoch {epoch} (best epoch {best_epoch})")
                 break
 
-    best_ckpt = ckpt_dir / "depth_baseline_best_seed{seed}.pt"
+    best_ckpt = ckpt_dir / f"depth_baseline_best_seed{seed}.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
     test_loss, test_acc, test_cm, test_preds, test_labels = evaluate(model, test_loader, criterion)
 
@@ -280,12 +280,12 @@ def main():
         },
     }
 
-    json_path = results_dir / "depth_baseline_results_seed{seed}.json"
+    json_path = results_dir / f"depth_baseline_results_seed{seed}.json"
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"[INFO] Saved JSON results to {json_path}")
 
-    cm_path = results_dir / "depth_confusion_matrix_seed{seed}.png"
+    cm_path = results_dir / f"depth_confusion_matrix_seed{seed}.png"
     plot_confusion_matrix(test_cm, class_names, cm_path, title="Depth Baseline Confusion Matrix")
     print(f"[INFO] Saved confusion matrix heatmap to {cm_path}")
 

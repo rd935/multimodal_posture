@@ -1,0 +1,32 @@
+data:
+  train_csv: data/utd_mhad/splits/utd_mhad_train.csv
+  val_csv: data/utd_mhad/splits/utd_mhad_val.csv
+  test_csv: data/utd_mhad/splits/utd_mhad_test.csv
+  rgb_frames: 16
+  resize: [224, 224]
+
+train:
+  seed: 42
+  epochs: 10
+  patience: 3
+  learning_rate: 1e-4
+  batch_size: 8
+
+loader:
+  num_workers: 4
+
+model:
+  embed_dim: 256
+  fusion_hidden_dim: 512
+  attn_hidden_dim: 256
+  pretrained: true
+  freeze_backbone: true
+  normalize_embeddings: false
+
+loss:
+  contrastive_weight: 0.01
+  contrastive_temperature: 0.1
+
+logging:
+  ckpt_dir: checkpoints/ablations/attn_contrastive
+  results_dir: results/ablations/attn_contrastive

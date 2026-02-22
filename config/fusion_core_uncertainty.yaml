@@ -1,0 +1,36 @@
+data:
+  train_csv: data/utd_mhad/splits/utd_mhad_train.csv
+  val_csv: data/utd_mhad/splits/utd_mhad_val.csv
+  test_csv: data/utd_mhad/splits/utd_mhad_test.csv
+  rgb_frames: 16
+  resize: [224, 224]
+
+train:
+  seed: 42
+  epochs: 40
+  patience: 8
+  learning_rate: 1e-4
+  batch_size: 8
+  label_smoothing: 0.1
+
+loader:
+  num_workers: 4
+
+model:
+  embed_dim: 256
+  fusion_hidden_dim: 512
+  attn_hidden_dim: 256
+  pretrained: true
+  freeze_backbone: false
+  normalize_embeddings: true
+
+loss:
+  contrastive_temperature: 0.1
+  contrastive_weight: 0.0         # <-- THIS is the ablation
+  uncertainty_reg_weight: 0.0001
+  attn_entropy_weight: 0.002
+  modality_dropout_prob: 0.3
+
+logging:
+  ckpt_dir: checkpoints/ablations/attn_uncertainty
+  results_dir: results/ablations/attn_uncertainty
