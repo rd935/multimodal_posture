@@ -232,7 +232,9 @@ def plot_attention_heatmap(
 
 
 def main():
-    set_seed(42)
+    seed = int(cfg["train"].get("seed", 42))
+    set_seed(seed)
+    print(f"[INFO] Using seed: {seed}")
     # -----------------------------------------------------
     # Load YAML config
     # -----------------------------------------------------
@@ -366,7 +368,7 @@ def main():
             best_val_acc = val_acc
             best_epoch = epoch
             epochs_no_improve = 0
-            torch.save(model.state_dict(), ckpt_dir / "fusion_attention_best.pt")
+            torch.save(model.state_dict(), ckpt_dir / "fusion_attention_best_seed{seed}.pt")
             print(f"  [*] New best val_acc={val_acc:.4f}, checkpoint saved.")
         else:
             epochs_no_improve += 1
@@ -375,7 +377,7 @@ def main():
                 break
 
     # -------------------- Final test evaluation -----------
-    best_ckpt = ckpt_dir / "fusion_attention_best.pt"
+    best_ckpt = ckpt_dir / "fusion_attention_best_seed{seed}.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
 
     (
@@ -417,13 +419,13 @@ def main():
         },
     }
 
-    json_path = results_dir / "fusion_attention_results.json"
+    json_path = results_dir / "fusion_attention_results_seed{seed}.json"
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"[INFO] Saved JSON results to {json_path}")
 
     # -------------------- Save confusion matrix heatmap ---
-    cm_path = results_dir / "fusion_attention_confusion_matrix.png"
+    cm_path = results_dir / "fusion_attention_confusion_matrix_seed{seed}.png"
     plot_confusion_matrix(
         test_cm,
         class_names,
@@ -433,7 +435,7 @@ def main():
     print(f"[INFO] Saved confusion matrix heatmap to {cm_path}")
 
     # -------------------- Save attention heatmap ----------
-    attn_heatmap_path = results_dir / "fusion_attention_heatmap.png"
+    attn_heatmap_path = results_dir / "fusion_attention_heatmap_seed{seed}.png"
     plot_attention_heatmap(
         mean_att_per_class,
         class_names,

@@ -131,7 +131,9 @@ def plot_confusion_matrix(cm, class_names, out_path, title="Confusion Matrix"):
 
 
 def main():
-    set_seed(42)
+    seed = int(cfg["train"].get("seed", 42))
+    set_seed(seed)
+    print(f"[INFO] Using seed: {seed}")
     # -----------------------------------------------------
     # Load YAML config
     # -----------------------------------------------------
@@ -248,7 +250,7 @@ def main():
             best_val_acc = val_acc
             best_epoch = epoch
             epochs_no_improve = 0
-            torch.save(model.state_dict(), ckpt_dir / "fusion_early_best.pt")
+            torch.save(model.state_dict(), ckpt_dir / "fusion_early_best_seed{seed}.pt")
             print(f"  [*] New best val_acc={val_acc:.4f}, checkpoint saved.")
         else:
             epochs_no_improve += 1
@@ -257,7 +259,7 @@ def main():
                 break
 
     # -------------------- Final test evaluation -----------
-    best_ckpt = ckpt_dir / "fusion_early_best.pt"
+    best_ckpt = ckpt_dir / "fusion_early_best_seed{seed}.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
     test_loss, test_acc, test_cm, test_preds, test_labels = evaluate(model, test_loader, criterion)
 
@@ -287,13 +289,13 @@ def main():
         },
     }
 
-    json_path = results_dir / "fusion_early_results.json"
+    json_path = results_dir / "fusion_early_results_seed{seed}.json"
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"[INFO] Saved JSON results to {json_path}")
 
     # -------------------- Save confusion matrix heatmap ---
-    cm_path = results_dir / "fusion_early_confusion_matrix.png"
+    cm_path = results_dir / "fusion_early_confusion_matrix_seed{seed}.png"
     plot_confusion_matrix(
         test_cm,
         class_names,

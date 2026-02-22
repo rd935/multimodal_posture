@@ -415,7 +415,7 @@ def main():
             best_val_acc = val_acc
             best_epoch = epoch
             epochs_no_improve = 0
-            torch.save(model.state_dict(), ckpt_dir / "fusion_core_best.pt")
+            torch.save(model.state_dict(), ckpt_dir / "fusion_core_best_seed{seed}.pt")
             print(f"  [*] New best val_acc={val_acc:.4f}, checkpoint saved.")
         else:
             epochs_no_improve += 1
@@ -424,7 +424,7 @@ def main():
                 break
 
     # --- Evaluate best core model on test set ---
-    best_ckpt = ckpt_dir / "fusion_core_best.pt"
+    best_ckpt = ckpt_dir / "fusion_core_best_seed{seed}.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
 
     test_loss, test_acc, test_cm, test_preds, test_labels = evaluate_core(
@@ -459,12 +459,12 @@ def main():
         },
     }
 
-    json_path = results_dir / "fusion_core_results.json"
+    json_path = results_dir / "fusion_core_results_seed{seed}.json"
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"[INFO] Saved JSON results to {json_path}")
 
-    cm_path = results_dir / "fusion_core_confusion_matrix.png"
+    cm_path = results_dir / "fusion_core_confusion_matrix_seed{seed}.png"
     plot_confusion_matrix(
         test_cm,
         class_names,
