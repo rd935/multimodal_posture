@@ -129,10 +129,7 @@ def plot_confusion_matrix(cm, class_names, out_path, title="Confusion Matrix"):
 
 
 def main():
-    seed = int(cfg["train"].get("seed", 42))
-    set_seed(seed)
-    print(f"[INFO] Using seed: {seed}")
-    # -----------------------------------------------------
+        # -----------------------------------------------------
     # Load YAML config
     # -----------------------------------------------------
     # Default config path: config/rgb_baseline.yaml
@@ -142,6 +139,10 @@ def main():
     print(f"[INFO] Using config: {config_path}")
     with open(config_path, "r") as f:
         cfg = yaml.safe_load(f)
+
+    seed = int(cfg["train"].get("seed", 42))
+    set_seed(seed)
+    print(f"[INFO] Using seed: {seed}")
 
     # -------------------- Paths --------------------------
     data_cfg = cfg["data"]
