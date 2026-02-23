@@ -259,8 +259,8 @@ def main():
     w_contrastive = float(loss_cfg.get("contrastive_weight", 0.0))
     contrastive_temperature = float(loss_cfg.get("contrastive_temperature", 0.1))
 
-    ckpt_dir = PROJECT_ROOT / log_cfg.get("ckpt_dir", "checkpoints/fusion_attention")
-    results_dir = PROJECT_ROOT / log_cfg.get("results_dir", "results/fusion_attention")
+    ckpt_dir = PROJECT_ROOT / log_cfg.get("ckpt_dir", "checkpoints/fusion_attention_contrastive")
+    results_dir = PROJECT_ROOT / log_cfg.get("results_dir", "results/fusion_attention_contrastive")
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -348,7 +348,7 @@ def main():
             best_val_acc = val_acc
             best_epoch = epoch
             epochs_no_improve = 0
-            torch.save(model.state_dict(), ckpt_dir / f"fusion_attention_best_seed{seed}.pt")
+            torch.save(model.state_dict(), ckpt_dir / f"fusion_attention_contrastive_best_seed{seed}.pt")
             print(f"  [*] New best val_acc={val_acc:.4f}, checkpoint saved.")
         else:
             epochs_no_improve += 1
@@ -357,7 +357,7 @@ def main():
                 break
 
     # -------------------- Final test evaluation -----------
-    best_ckpt = ckpt_dir / f"fusion_attention_best_seed{seed}.pt"
+    best_ckpt = ckpt_dir / f"fusion_attention_contrastive_best_seed{seed}.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
 
     test_loss, test_acc, test_cm, test_preds, test_labels, mean_att, mean_att_per_class = evaluate_with_attention(
@@ -370,7 +370,7 @@ def main():
 
     results = {
         "modality": "rgb+depth",
-        "fusion_type": "attention_fusion",
+        "fusion_type": "attention_contrastive_fusion",
         "seed": seed,
         "num_classes": num_classes,
         "class_names": class_names,
@@ -391,16 +391,16 @@ def main():
         },
     }
 
-    json_path = results_dir / f"fusion_attention_results_seed{seed}.json"
+    json_path = results_dir / f"fusion_attention_contrastive_results_seed{seed}.json"
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"[INFO] Saved JSON results to {json_path}")
 
-    cm_path = results_dir / f"fusion_attention_confusion_matrix_seed{seed}.png"
+    cm_path = results_dir / f"fusion_attention_contrastive_confusion_matrix_seed{seed}.png"
     plot_confusion_matrix(test_cm, class_names, cm_path, title="Attention Fusion (RGB+Depth) Confusion Matrix")
     print(f"[INFO] Saved confusion matrix heatmap to {cm_path}")
 
-    attn_heatmap_path = results_dir / f"fusion_attention_heatmap_seed{seed}.png"
+    attn_heatmap_path = results_dir / f"fusion_attention_contrastive_heatmap_seed{seed}.png"
     plot_attention_heatmap(
         mean_att_per_class, class_names, attn_heatmap_path,
         title="Attention Fusion: Mean Modality Attention per Class",

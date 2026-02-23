@@ -280,8 +280,8 @@ def main():
     resize = tuple(data_cfg.get("resize", [224, 224]))
     num_workers = int(loader_cfg.get("num_workers", 4))
 
-    ckpt_dir = PROJECT_ROOT / log_cfg.get("ckpt_dir", "checkpoints/fusion_core")
-    results_dir = PROJECT_ROOT / log_cfg.get("results_dir", "results/fusion_core")
+    ckpt_dir = PROJECT_ROOT / log_cfg.get("ckpt_dir", "checkpoints/fusion_core_uncertainty")
+    results_dir = PROJECT_ROOT / log_cfg.get("results_dir", "results/fusion_core_uncertainty")
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -415,7 +415,7 @@ def main():
             best_val_acc = val_acc
             best_epoch = epoch
             epochs_no_improve = 0
-            torch.save(model.state_dict(), ckpt_dir / f"fusion_core_best_seed{seed}.pt")
+            torch.save(model.state_dict(), ckpt_dir / f"fusion_core_uncertainty_best_seed{seed}.pt")
             print(f"  [*] New best val_acc={val_acc:.4f}, checkpoint saved.")
         else:
             epochs_no_improve += 1
@@ -424,7 +424,7 @@ def main():
                 break
 
     # --- Evaluate best core model on test set ---
-    best_ckpt = ckpt_dir / f"fusion_core_best_seed{seed}.pt"
+    best_ckpt = ckpt_dir / f"fusion_core_unertainty_best_seed{seed}.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
 
     test_loss, test_acc, test_cm, test_preds, test_labels = evaluate_core(
@@ -435,7 +435,7 @@ def main():
 
     results = {
         "modality": "rgb+depth",
-        "fusion_type": "core_fusion",
+        "fusion_type": "core_fusion_uncertainty",
         "num_classes": num_classes,
         "class_names": class_names,
         "config_path": str(config_path),
@@ -459,12 +459,12 @@ def main():
         },
     }
 
-    json_path = results_dir / f"fusion_core_results_seed{seed}.json"
+    json_path = results_dir / f"fusion_core_uncertainty_results_seed{seed}.json"
     with open(json_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"[INFO] Saved JSON results to {json_path}")
 
-    cm_path = results_dir / f"fusion_core_confusion_matrix_seed{seed}.png"
+    cm_path = results_dir / f"fusion_core_uncertainty_confusion_matrix_seed{seed}.png"
     plot_confusion_matrix(
         test_cm,
         class_names,

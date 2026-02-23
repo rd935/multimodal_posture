@@ -27,11 +27,11 @@ def load_metrics(pattern):
     }
 
 models = {
-    "RGB-only":        "results/rgb_baseline_results_seed*.json",
-    "Depth-only":      "results/depth_baseline_results_seed*.json",
-    "Early Fusion":    "results/fusion_early_results_seed*.json",
-    "Attention Fusion":"results/fusion_attention_results_seed*.json",
-    "Core Fusion":     "results/fusion_core_results_seed*.json",
+    "RGB-only":        "results/rgb_baseline/rgb_baseline_results_seed*.json",
+    "Depth-only":      "results/depth_baseline/depth_baseline_results_seed*.json",
+    "Early Fusion":    "results/fusion_early/fusion_early_results_seed*.json",
+    "Attention Fusion":"results/fusion_attention/fusion_attention_results_seed*.json",
+    "Core Fusion":     "results/fusion_core/fusion_core_results_seed*.json",
 }
 
 for name, pat in models.items():
