@@ -1,0 +1,45 @@
+---------------------------------------
+Running on host: gpuk002.amarel.rutgers.edu
+CUDA visible devices: 0
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_core.yaml
+[INFO] Using seed: 43
+[DEBUG] Dataset sizes: train=431, val=215, test=215
+[INFO] Core fusion train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] Core fusion class weights (sqrt-inv): tensor([0.2615, 0.3143, 0.4243], device='cuda:0')
+Epoch 01 | train_loss=0.3242, train_cls=0.3192, train_contrast=1.5597, train_unc=0.9728, train_acc=0.6705 | val_loss=0.9526, val_acc=0.8000
+  [*] New best val_acc=0.8000, checkpoint saved.
+Epoch 02 | train_loss=0.2683, train_cls=0.2637, train_contrast=1.4002, train_unc=1.0002, train_acc=0.8840 | val_loss=0.9075, val_acc=0.7488
+Epoch 03 | train_loss=0.2124, train_cls=0.2078, train_contrast=1.4270, train_unc=1.0363, train_acc=0.8933 | val_loss=0.6683, val_acc=0.8930
+  [*] New best val_acc=0.8930, checkpoint saved.
+Epoch 04 | train_loss=0.1521, train_cls=0.1476, train_contrast=1.3910, train_unc=1.1140, train_acc=0.9490 | val_loss=0.6278, val_acc=0.8186
+Epoch 05 | train_loss=0.1158, train_cls=0.1113, train_contrast=1.4139, train_unc=1.2483, train_acc=0.9559 | val_loss=0.6883, val_acc=0.8326
+Epoch 06 | train_loss=0.1173, train_cls=0.1124, train_contrast=1.5604, train_unc=1.3260, train_acc=0.9281 | val_loss=0.5909, val_acc=0.8186
+Epoch 07 | train_loss=0.0950, train_cls=0.0904, train_contrast=1.4671, train_unc=1.4486, train_acc=0.9536 | val_loss=0.4165, val_acc=0.9023
+  [*] New best val_acc=0.9023, checkpoint saved.
+Epoch 08 | train_loss=0.0799, train_cls=0.0754, train_contrast=1.4110, train_unc=1.5748, train_acc=0.9768 | val_loss=0.4700, val_acc=0.8744
+Epoch 09 | train_loss=0.0791, train_cls=0.0748, train_contrast=1.3752, train_unc=1.5649, train_acc=0.9814 | val_loss=0.8356, val_acc=0.6930
+Epoch 10 | train_loss=0.0719, train_cls=0.0674, train_contrast=1.4000, train_unc=1.6081, train_acc=0.9861 | val_loss=1.2098, val_acc=0.5721
+Epoch 11 | train_loss=0.0787, train_cls=0.0743, train_contrast=1.4012, train_unc=1.5828, train_acc=0.9814 | val_loss=0.5436, val_acc=0.8605
+Epoch 12 | train_loss=0.0673, train_cls=0.0630, train_contrast=1.3655, train_unc=1.5553, train_acc=0.9930 | val_loss=0.5318, val_acc=0.8605
+Epoch 13 | train_loss=0.0684, train_cls=0.0642, train_contrast=1.3489, train_unc=1.5169, train_acc=0.9954 | val_loss=0.4979, val_acc=0.8698
+Epoch 14 | train_loss=0.0621, train_cls=0.0580, train_contrast=1.2829, train_unc=1.5621, train_acc=1.0000 | val_loss=0.4400, val_acc=0.8977
+Epoch 15 | train_loss=0.0625, train_cls=0.0586, train_contrast=1.2218, train_unc=1.5821, train_acc=0.9977 | val_loss=0.4301, val_acc=0.9163
+  [*] New best val_acc=0.9163, checkpoint saved.
+Epoch 16 | train_loss=0.0650, train_cls=0.0608, train_contrast=1.3167, train_unc=1.5642, train_acc=0.9977 | val_loss=0.4443, val_acc=0.8884
+Epoch 17 | train_loss=0.0677, train_cls=0.0633, train_contrast=1.3818, train_unc=1.6385, train_acc=0.9907 | val_loss=0.4603, val_acc=0.8884
+Epoch 18 | train_loss=0.0646, train_cls=0.0603, train_contrast=1.3553, train_unc=1.6279, train_acc=0.9954 | val_loss=0.7167, val_acc=0.8093
+Epoch 19 | train_loss=0.0724, train_cls=0.0680, train_contrast=1.4062, train_unc=1.7227, train_acc=0.9861 | val_loss=0.4280, val_acc=0.8930
+Epoch 20 | train_loss=0.0685, train_cls=0.0642, train_contrast=1.3656, train_unc=1.6709, train_acc=0.9907 | val_loss=0.7455, val_acc=0.7674
+Epoch 21 | train_loss=0.0664, train_cls=0.0621, train_contrast=1.3491, train_unc=1.6647, train_acc=0.9930 | val_loss=0.5050, val_acc=0.8837
+Epoch 22 | train_loss=0.0628, train_cls=0.0585, train_contrast=1.3679, train_unc=1.6346, train_acc=1.0000 | val_loss=0.5584, val_acc=0.8605
+Epoch 23 | train_loss=0.0772, train_cls=0.0729, train_contrast=1.3748, train_unc=1.6386, train_acc=0.9722 | val_loss=0.5915, val_acc=0.8279
+Epoch 24 | train_loss=0.0740, train_cls=0.0691, train_contrast=1.5584, train_unc=1.7260, train_acc=0.9768 | val_loss=0.7833, val_acc=0.7860
+Epoch 25 | train_loss=0.0731, train_cls=0.0687, train_contrast=1.3885, train_unc=1.7969, train_acc=0.9861 | val_loss=0.6000, val_acc=0.8372
+[INFO] Early stopping at epoch 25 (best epoch 15)
+[TEST] loss=0.4565, acc=0.8977, macro_F1=0.8849
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_results_seed43.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_core/fusion_core_confusion_matrix_seed43.png

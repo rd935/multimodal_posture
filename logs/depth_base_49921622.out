@@ -1,0 +1,38 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 2
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/depth_baseline.yaml
+[INFO] Using seed: 41
+[INFO] Using seed: 41
+[INFO] Train label counts: Counter({0: 208, 1: 144, 2: 79})
+Epoch 01 | train_loss=0.6530, train_acc=0.7239 | val_loss=0.6457, val_acc=0.7070
+  [*] New best val_acc=0.7070, checkpoint saved.
+Epoch 02 | train_loss=0.3053, train_acc=0.8910 | val_loss=0.3677, val_acc=0.8605
+  [*] New best val_acc=0.8605, checkpoint saved.
+Epoch 03 | train_loss=0.1961, train_acc=0.9281 | val_loss=1.3756, val_acc=0.5488
+Epoch 04 | train_loss=0.1172, train_acc=0.9606 | val_loss=0.3812, val_acc=0.9023
+  [*] New best val_acc=0.9023, checkpoint saved.
+Epoch 05 | train_loss=0.0832, train_acc=0.9791 | val_loss=0.5720, val_acc=0.8326
+Epoch 06 | train_loss=0.0734, train_acc=0.9768 | val_loss=0.3416, val_acc=0.8791
+Epoch 07 | train_loss=0.0309, train_acc=1.0000 | val_loss=0.2472, val_acc=0.9070
+  [*] New best val_acc=0.9070, checkpoint saved.
+Epoch 08 | train_loss=0.0608, train_acc=0.9907 | val_loss=0.2959, val_acc=0.9116
+  [*] New best val_acc=0.9116, checkpoint saved.
+Epoch 09 | train_loss=0.0223, train_acc=1.0000 | val_loss=0.2167, val_acc=0.9349
+  [*] New best val_acc=0.9349, checkpoint saved.
+Epoch 10 | train_loss=0.0152, train_acc=1.0000 | val_loss=0.2210, val_acc=0.9209
+Epoch 11 | train_loss=0.0077, train_acc=1.0000 | val_loss=0.2893, val_acc=0.9209
+Epoch 12 | train_loss=0.0142, train_acc=0.9954 | val_loss=0.3413, val_acc=0.9070
+Epoch 13 | train_loss=0.0611, train_acc=0.9768 | val_loss=1.0464, val_acc=0.6465
+[INFO] Early stopping at epoch 13 (best epoch 9)
+[TEST] loss=0.2917, acc=0.9070, macro_F1=0.9039
+[TEST] Confusion matrix:
+ [[97  5  1]
+ [ 8 59  5]
+ [ 0  1 39]]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/depth_baseline/depth_baseline_results_seed41.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/depth_baseline/depth_confusion_matrix_seed41.png

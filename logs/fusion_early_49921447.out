@@ -1,0 +1,36 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 1
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_early.yaml
+[INFO] Using seed: 43
+[INFO] RGB train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] RGB class weights: tensor([0.1970, 0.2845, 0.5186], device='cuda:0')
+Epoch 01 | train_loss=0.9993, train_acc=0.6473 | val_loss=1.0181, val_acc=0.3581
+  [*] New best val_acc=0.3581, checkpoint saved.
+Epoch 02 | train_loss=0.7209, train_acc=0.8886 | val_loss=0.9961, val_acc=0.4651
+  [*] New best val_acc=0.4651, checkpoint saved.
+Epoch 03 | train_loss=0.4576, train_acc=0.9165 | val_loss=0.6166, val_acc=0.8047
+  [*] New best val_acc=0.8047, checkpoint saved.
+Epoch 04 | train_loss=0.3259, train_acc=0.9049 | val_loss=0.5162, val_acc=0.8093
+  [*] New best val_acc=0.8093, checkpoint saved.
+Epoch 05 | train_loss=0.2193, train_acc=0.9420 | val_loss=0.5082, val_acc=0.8140
+  [*] New best val_acc=0.8140, checkpoint saved.
+Epoch 06 | train_loss=0.1324, train_acc=0.9745 | val_loss=0.4055, val_acc=0.8605
+  [*] New best val_acc=0.8605, checkpoint saved.
+Epoch 07 | train_loss=0.1205, train_acc=0.9675 | val_loss=1.1063, val_acc=0.6047
+Epoch 08 | train_loss=0.1511, train_acc=0.9443 | val_loss=0.8326, val_acc=0.7209
+Epoch 09 | train_loss=0.1396, train_acc=0.9652 | val_loss=0.4908, val_acc=0.8279
+Epoch 10 | train_loss=0.0793, train_acc=0.9745 | val_loss=0.5528, val_acc=0.8279
+Epoch 11 | train_loss=0.0477, train_acc=0.9861 | val_loss=0.5664, val_acc=0.8047
+[INFO] Early stopping at epoch 11 (best epoch 6)
+[TEST] loss=0.3175, acc=0.8930, macro_F1=0.8895
+[TEST] Confusion matrix:
+ [[99  4  0]
+ [12 60  0]
+ [ 0  7 33]]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_early/fusion_early_results_seed43.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_early/fusion_early_confusion_matrix_seed43.png

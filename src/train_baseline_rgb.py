@@ -246,8 +246,7 @@ def main():
                 break
 
     # -------------------- Final test evaluation -----------
-    best_ckpt = ckpt_dir / f
-    f"rgb_baseline_best_seed{seed}.pt"
+    best_ckpt = ckpt_dir / f"rgb_baseline_best_seed{seed}.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
     test_loss, test_acc, test_cm, test_preds, test_labels = evaluate(model, test_loader, criterion)
 

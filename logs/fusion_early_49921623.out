@@ -1,0 +1,39 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 1
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_early.yaml
+[INFO] Using seed: 41
+[INFO] RGB train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] RGB class weights: tensor([0.1970, 0.2845, 0.5186], device='cuda:0')
+Epoch 01 | train_loss=0.9899, train_acc=0.6404 | val_loss=0.9154, val_acc=0.6977
+  [*] New best val_acc=0.6977, checkpoint saved.
+Epoch 02 | train_loss=0.7170, train_acc=0.8677 | val_loss=0.7152, val_acc=0.8047
+  [*] New best val_acc=0.8047, checkpoint saved.
+Epoch 03 | train_loss=0.4398, train_acc=0.9350 | val_loss=0.7785, val_acc=0.6837
+Epoch 04 | train_loss=0.2628, train_acc=0.9420 | val_loss=0.5079, val_acc=0.8372
+  [*] New best val_acc=0.8372, checkpoint saved.
+Epoch 05 | train_loss=0.1630, train_acc=0.9652 | val_loss=0.4270, val_acc=0.8512
+  [*] New best val_acc=0.8512, checkpoint saved.
+Epoch 06 | train_loss=0.1588, train_acc=0.9606 | val_loss=0.5852, val_acc=0.7674
+Epoch 07 | train_loss=0.0978, train_acc=0.9675 | val_loss=0.4127, val_acc=0.8651
+  [*] New best val_acc=0.8651, checkpoint saved.
+Epoch 08 | train_loss=0.1465, train_acc=0.9536 | val_loss=0.3786, val_acc=0.8651
+Epoch 09 | train_loss=0.1196, train_acc=0.9629 | val_loss=0.3363, val_acc=0.8930
+  [*] New best val_acc=0.8930, checkpoint saved.
+Epoch 10 | train_loss=0.1520, train_acc=0.9513 | val_loss=1.3185, val_acc=0.5628
+Epoch 11 | train_loss=0.0670, train_acc=0.9907 | val_loss=0.3387, val_acc=0.8744
+Epoch 12 | train_loss=0.0399, train_acc=0.9861 | val_loss=0.3257, val_acc=0.8837
+Epoch 13 | train_loss=0.0187, train_acc=1.0000 | val_loss=0.3783, val_acc=0.8930
+Epoch 14 | train_loss=0.1041, train_acc=0.9582 | val_loss=1.2935, val_acc=0.5023
+[INFO] Early stopping at epoch 14 (best epoch 9)
+[TEST] loss=0.3111, acc=0.9023, macro_F1=0.8893
+[TEST] Confusion matrix:
+ [[97  6  0]
+ [ 5 67  0]
+ [ 0 10 30]]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/fusion_early/fusion_early_results_seed41.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/fusion_early/fusion_early_confusion_matrix_seed41.png

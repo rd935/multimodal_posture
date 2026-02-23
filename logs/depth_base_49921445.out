@@ -1,0 +1,25 @@
+---------------------------------------
+Running on host: gpuk001.amarel.rutgers.edu
+CUDA visible devices: 2
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/depth_baseline.yaml
+[INFO] Using seed: 43
+[INFO] Using seed: 43
+[INFO] Train label counts: Counter({0: 208, 1: 144, 2: 79})
+Epoch 01 | train_loss=0.6161, train_acc=0.7819 | val_loss=0.2930, val_acc=0.8977
+  [*] New best val_acc=0.8977, checkpoint saved.
+Epoch 02 | train_loss=0.2471, train_acc=0.9211 | val_loss=0.3617, val_acc=0.8744
+Epoch 03 | train_loss=0.1509, train_acc=0.9466 | val_loss=0.3973, val_acc=0.8930
+Epoch 04 | train_loss=0.1104, train_acc=0.9698 | val_loss=0.4708, val_acc=0.8558
+Epoch 05 | train_loss=0.1114, train_acc=0.9698 | val_loss=0.6601, val_acc=0.6977
+[INFO] Early stopping at epoch 5 (best epoch 1)
+[TEST] loss=0.2925, acc=0.9349, macro_F1=0.9320
+[TEST] Confusion matrix:
+ [[99  4  0]
+ [ 5 65  2]
+ [ 0  3 37]]
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/depth_baseline/depth_baseline_results_seed43.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/depth_baseline/depth_confusion_matrix_seed43.png
