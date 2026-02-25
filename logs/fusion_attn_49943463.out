@@ -1,0 +1,24 @@
+---------------------------------------
+Running on host: gpuk004.amarel.rutgers.edu
+CUDA visible devices: 1
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_attention_contrastive.yaml
+[INFO] Using seed: 41
+[DEBUG] Dataset sizes: train=431, val=215, test=215
+[INFO] Train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] Class weights: tensor([0.1970, 0.2845, 0.5186], device='cuda:0')
+Epoch 01 | train_loss=1.1034, train_acc=0.3991 | val_loss=1.0827, val_acc=0.2186
+  [*] New best val_acc=0.2186, checkpoint saved.
+Epoch 02 | train_loss=1.0566, train_acc=0.4385 | val_loss=0.9883, val_acc=0.7023
+  [*] New best val_acc=0.7023, checkpoint saved.
+Epoch 03 | train_loss=0.9731, train_acc=0.5661 | val_loss=0.8881, val_acc=0.5953
+Epoch 04 | train_loss=0.8503, train_acc=0.6682 | val_loss=0.8529, val_acc=0.6372
+Epoch 05 | train_loss=0.7564, train_acc=0.6705 | val_loss=0.8118, val_acc=0.6093
+[INFO] Early stopping at epoch 5 (best epoch 2)
+[TEST] loss=1.0143, acc=0.7535, macro_F1=0.7446
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/ablations/attn_contrastive/fusion_attention_contrastive_results_seed41.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/ablations/attn_contrastive/fusion_attention_contrastive_confusion_matrix_seed41.png
+[INFO] Saved attention heatmap to /cache/home/rd935/multimodal_posture/results/ablations/attn_contrastive/fusion_attention_contrastive_heatmap_seed41.png

@@ -44,5 +44,5 @@ EOF
 
 # ------------------ Run Training ------------------
 
-python src/train_fusion_attention.py config/fusion_attention_contrastive.yaml
+python src/train_fusion_attention.py config/fusion_attention_contrastive43.yaml
 

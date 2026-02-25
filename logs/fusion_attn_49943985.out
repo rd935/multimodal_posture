@@ -1,0 +1,31 @@
+---------------------------------------
+Running on host: gpuk005.amarel.rutgers.edu
+CUDA visible devices: 1
+Conda environment: multimodal_posture
+---------------------------------------
+CUDA available: True
+GPU: NVIDIA A100-PCIE-40GB
+[INFO] Using config: config/fusion_attention_contrastive43.yaml
+[INFO] Using seed: 43
+[DEBUG] Dataset sizes: train=431, val=215, test=215
+[INFO] Train label counts: Counter({0: 208, 1: 144, 2: 79})
+[INFO] Class weights: tensor([0.1970, 0.2845, 0.5186], device='cuda:0')
+Epoch 01 | train_loss=1.1075, train_acc=0.4176 | val_loss=1.0431, val_acc=0.5953
+  [*] New best val_acc=0.5953, checkpoint saved.
+Epoch 02 | train_loss=1.0484, train_acc=0.5313 | val_loss=0.9555, val_acc=0.5581
+Epoch 03 | train_loss=0.9880, train_acc=0.5058 | val_loss=0.9054, val_acc=0.6233
+  [*] New best val_acc=0.6233, checkpoint saved.
+Epoch 04 | train_loss=0.8752, train_acc=0.6218 | val_loss=0.8400, val_acc=0.6837
+  [*] New best val_acc=0.6837, checkpoint saved.
+Epoch 05 | train_loss=0.8210, train_acc=0.6473 | val_loss=0.8409, val_acc=0.6233
+Epoch 06 | train_loss=0.7490, train_acc=0.7030 | val_loss=1.0200, val_acc=0.3628
+Epoch 07 | train_loss=0.7640, train_acc=0.6473 | val_loss=0.7360, val_acc=0.7349
+  [*] New best val_acc=0.7349, checkpoint saved.
+Epoch 08 | train_loss=0.6488, train_acc=0.7285 | val_loss=1.0077, val_acc=0.4233
+Epoch 09 | train_loss=0.6169, train_acc=0.7262 | val_loss=0.7841, val_acc=0.4837
+Epoch 10 | train_loss=0.6211, train_acc=0.7378 | val_loss=0.7731, val_acc=0.5628
+[INFO] Early stopping at epoch 10 (best epoch 7)
+[TEST] loss=0.7571, acc=0.7581, macro_F1=0.7444
+[INFO] Saved JSON results to /cache/home/rd935/multimodal_posture/results/ablations/attn_contrastive/fusion_attention_contrastive_results_seed43.json
+[INFO] Saved confusion matrix heatmap to /cache/home/rd935/multimodal_posture/results/ablations/attn_contrastive/fusion_attention_contrastive_confusion_matrix_seed43.png
+[INFO] Saved attention heatmap to /cache/home/rd935/multimodal_posture/results/ablations/attn_contrastive/fusion_attention_contrastive_heatmap_seed43.png

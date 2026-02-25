@@ -6,7 +6,7 @@ data:
   resize: [224, 224]
 
 train:
-  seed: 42
+  seed: 41
   epochs: 10
   patience: 3
   learning_rate: 1e-4

@@ -424,7 +424,7 @@ def main():
                 break
 
     # --- Evaluate best core model on test set ---
-    best_ckpt = ckpt_dir / f"fusion_core_unertainty_best_seed{seed}.pt"
+    best_ckpt = ckpt_dir / f"fusion_core_uncertainty_best_seed{seed}.pt"
     model.load_state_dict(torch.load(best_ckpt, map_location=DEVICE))
 
     test_loss, test_acc, test_cm, test_preds, test_labels = evaluate_core(
